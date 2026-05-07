@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import HTTPException
 
 from app.core.repository import BaseRepository
@@ -11,28 +13,10 @@ class ProductoRepository(BaseRepository):
         self.session = session 
         
     def create(self, data):
-
-        with self.uow as uow:
-
-            # 1. validar que venga categoria
-            if not data.categoria_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail="El producto debe tener una categoría"
-                )
-
-            # 2. validar que exista en DB
-            categoria = uow.categorias.get_by_id(data.categoria_id)
-
-            if not categoria:
-                raise HTTPException(
-                    status_code=404,
-                    detail="La categoría no existe"
-                )
-
-            #3. crear producto
+            
+             #3. crear producto
             producto = Producto(**data.dict())
-            producto = uow.productos.add(producto)
+            producto = self.session.add(producto)
 
             return producto
 
@@ -40,15 +24,19 @@ class ProductoRepository(BaseRepository):
         return self.session.exec(
             select(Producto).where(Producto.name == name)
         ).first()
-    def get_by_id(self, id: int) -> Producto:
+    
+    def get_by_id(self, id: int) -> Producto | None:
         producto = self.session.get(Producto, id)
-        if producto:
-            self.session.refresh(producto)
+
+        if not producto or producto.deleted_at is not None:
+            return None
+
         return producto
 
-
     def get_all(self) -> list[Producto]:
-        productos = self.session.exec(select(Producto)).all()
+        productos = self.session.exec(
+            select(Producto).where(Producto.deleted_at == None)
+            ).all()
         for producto in productos:
             self.session.refresh(producto)
         return productos
@@ -64,11 +52,11 @@ class ProductoRepository(BaseRepository):
         return producto
 
     def delete(self,producto:Producto)-> None:
-     self.session.delete(producto)
-
-     #--------------------------------repositoryde producto categoria----------------------------
+     producto.deleted_at = datetime.utcnow()
+     self.session.add(producto)
+     #--------------------------------repository de producto categoria----------------------------
      from app.modules.ProductoCategoria.model import ProductoCategoria
-from sqlmodel import Session, select
+     from sqlmodel import Session, select
 class ProductoCategoriaRepository(BaseRepository):
     def __init__(self, session: Session):
         self.session = session

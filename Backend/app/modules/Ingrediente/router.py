@@ -1,16 +1,12 @@
 from fastapi import APIRouter, Depends
 from app.core.database import get_session
-from app.modules.Producto.unit_of_work import ProductoUnitOfWork
 from app.modules.Ingrediente.service import IngredienteService
 from app.modules.Ingrediente.schema import IngredienteCreate, IngredienteRead
 router = APIRouter(prefix="/Ingredientes", tags= ["Ingredientes"])
 
 
 def get_service(session=Depends(get_session)):
-    uow=ProductoUnitOfWork(session)
-    return IngredienteService(uow)
-
-
+    return IngredienteService(session)
 #create
 @router.post("/", response_model=IngredienteRead)
 def create_Ingrediente(data:IngredienteCreate, service:IngredienteService = Depends(get_service)):

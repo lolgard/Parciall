@@ -12,6 +12,7 @@ class Producto(SQLModel, table=True):
     price: float
     stock_cantidad:int #=Field(0,stock_cantidad>=0)
     disponible: bool =Field(default =True)
+ 
 
 #guarda el tiempo en el que se modifica en la base 
     created_at: datetime = Field(default_factory=datetime.utcnow)

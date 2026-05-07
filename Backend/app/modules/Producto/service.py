@@ -1,3 +1,8 @@
+
+
+from sqlmodel import Session
+
+from app.modules.Producto.unit_of_work import ProductoUnitOfWork
 from fastapi import HTTPException
 
 from app.core.unit_of_work import BaseUnitOfWork
@@ -7,12 +12,12 @@ from app.modules.ProductoCategoria.model import ProductoCategoria
 from app.modules.ProductoIngredientes.model import ProductoIngrediente
 
 class ProductoService():
-    def __init__(self, uow: BaseUnitOfWork):
-        self.uow = uow
+    def __init__(self, session):
+     self._session = session
 
     def producto_service_create(self, data: ProductoCreate):
 
-        with self.uow as uow:
+        with ProductoUnitOfWork(self._session) as uow:
 
             if not data.name.strip():
                 raise HTTPException(400, "El nombre no puede estar vacío")
@@ -24,9 +29,25 @@ class ProductoService():
                 raise HTTPException(400, "El stock no puede ser negativo")
 
             existente = uow.productos.get_by_name(data.name)
+
             if existente:
                 raise HTTPException(400, "Ya existe un producto con ese nombre")
 
+            # 1. validar que venga categoria
+            if not data.categorias:
+                raise HTTPException(
+                    status_code=400,
+                    detail="El producto debe tener una categoría"
+                )
+
+            # 2. validar que exista en DB
+            categoria = uow.categorias.get_by_id(data.categorias)
+
+            if not categoria:
+                raise HTTPException(
+                    status_code=404,
+                    detail="La categoría no existe"
+                )
          #  crear producto 
             data_dict = data.dict(exclude={"categorias", "ingredientes"})
             producto = Producto(**data_dict)
@@ -66,8 +87,9 @@ class ProductoService():
             return producto
 
     def update(self, product_id: int, data: ProductoCreate):
-        with self.uow as uow:
+        with ProductoUnitOfWork(self._session) as uow:
             producto = uow.productos.get_by_id(product_id)
+
             if not producto:
                  raise HTTPException(404, "Producto no encontrado")
         
@@ -97,21 +119,21 @@ class ProductoService():
 
         
     def get_all(self):
-        with self.uow as uow:
+        with ProductoUnitOfWork(self._session) as uow:
             producto = uow.productos.get_all()
             if not producto:
                 raise HTTPException(404, "No se encontraron productos") 
             return producto
         
     def get_by_id(self, product_id: int):
-        with self.uow as uow:
+        with ProductoUnitOfWork(self._session) as uow:
             producto = uow.productos.get_by_id(product_id)
             if not producto:
                 raise HTTPException(404, "Producto no encontrado")
             return producto
 
     def delete(self, product_id: int):
-        with self.uow as uow:
+        with ProductoUnitOfWork(self._session) as uow:
             producto = uow.productos.get_by_id(product_id)
             if not producto:
                 raise HTTPException(404, "Producto no encontrado")

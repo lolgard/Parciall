@@ -5,11 +5,8 @@ from app.modules.Producto.service import ProductoService
 from app.modules.Producto.schema import ProductoCreate, ProductoRead
 router = APIRouter(prefix="/productos", tags= ["productos"])
 
-
 def get_service(session=Depends(get_session)):
-    uow=ProductoUnitOfWork(session)
-    return ProductoService(uow)
-
+    return ProductoService(session)
 
 #create
 @router.post("/", response_model=ProductoRead)

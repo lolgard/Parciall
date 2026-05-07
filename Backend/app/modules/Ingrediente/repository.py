@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from app.core.repository import BaseRepository
 from app.modules.Ingrediente.model import Ingrediente
 from app.modules.Ingrediente.schema import IngredienteCreate
@@ -12,8 +14,12 @@ class IngredienteRepository(BaseRepository):
         self.session.add(ingrediente)
         return ingrediente 
 
-    def get_by_id(self,id:int)-> Ingrediente:
-        return self.session.get(Ingrediente,id)
+    def get_by_id(self,id:int)-> Ingrediente | None:        
+        ingrediente = self.session.get(Ingrediente,id)
+        
+        if not ingrediente or ingrediente.deleted_at is not None:
+          return None
+        return ingrediente
 
     def get_by_name(self,name:str)-> Ingrediente:
         return self.session.exec(
@@ -26,9 +32,12 @@ class IngredienteRepository(BaseRepository):
         return producto
 
     def get_all(self)->list[Ingrediente]:
-     return self.session.exec(
-         select(Ingrediente)
+        ingrediente = self.session.exec(
+            select(Ingrediente).where(Ingrediente.deleted_at == None)
         ).all()
+        return ingrediente
 
     def delete(self,ingrediente:Ingrediente)-> None:
-     self.session.delete(ingrediente)
+     ingrediente.deleted_at = datetime.utcnow()
+     self.session.add(ingrediente)
+    

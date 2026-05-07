@@ -27,7 +27,7 @@ class ProductoCreate(ProductoBase):
     categorias: list[int]
     ingredientes: Optional[list[int]] = None
 
-class ProductoUpdate(ProductoBase):
+class ProductoUpdate(SQLModel):
     name: Optional[str] = None
     price: Optional[float] = None
     stock_cantidad: Optional[int] = None

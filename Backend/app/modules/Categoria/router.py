@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from app.core.database import get_session
-from app.modules.Producto.unit_of_work import ProductoUnitOfWork
+
 from app.modules.Categoria.service import CategoriaService
 from app.modules.Categoria.schema import CategoriaCreate
 from app.modules.Categoria.schema import CategoriaRead
@@ -8,8 +8,7 @@ router = APIRouter(prefix="/categorias", tags= ["categorias"])
 
 
 def get_service(session=Depends(get_session)):
-    uow=ProductoUnitOfWork(session)
-    return CategoriaService(uow)
+    return CategoriaService(session)
 
 
 #create
