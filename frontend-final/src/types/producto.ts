@@ -30,6 +30,6 @@ export interface Producto {
   price: number
   stock_cantidad: number
   disponible: boolean
-  categorias: ProductoCategoria[]  // ← esto agregás
-  ingredientes: ProductoIngrediente[]  // ← esto agregás
+  categorias: ProductoCategoria[] 
+  ingredientes: ProductoIngrediente[]  
 }
