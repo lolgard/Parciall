@@ -64,3 +64,7 @@ class BaseUnitOfWork:
         Ejecuta un rollback explícito de la transacción actual.
         """
         self._session.rollback()
+    
+def get_uow() -> BaseUnitOfWork:
+    """Dependencia FastAPI: provee un UnitOfWork por request."""
+    return BaseUnitOfWork()
