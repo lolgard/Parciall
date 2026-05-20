@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from app.core.repository import BaseRepository
 from app.modules.Producto.model import Producto
 from app.modules.ProductoCategoria.model import ProductoCategoria
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from app.modules.ProductoIngredientes.model import ProductoIngrediente
 class ProductoRepository(BaseRepository):
@@ -40,6 +40,11 @@ class ProductoRepository(BaseRepository):
         for producto in productos:
             self.session.refresh(producto)
         return productos
+    
+    def get_paginated(self, offset: int, limit: int) -> tuple[list[Producto], int]:
+        total   = self.session.exec(select(func.count()).select_from(Producto)).one()
+        items   = self.session.exec(select(Producto).offset(offset).limit(limit)).all()
+        return items, total
 
     def update(self, producto: Producto) -> Producto:
         self.session.add(producto)

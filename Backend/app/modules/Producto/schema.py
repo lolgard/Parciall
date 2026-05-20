@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field
-from typing import Optional
+from typing import Generic, List, Optional, TypeVar
 from datetime import datetime
 
 class ProductoBase(SQLModel):
@@ -11,15 +11,13 @@ class ProductoBase(SQLModel):
 class ProductoCategoriaRead(SQLModel):
     categoria_id: int
     es_principal: bool
+    delete_at: Optional[datetime] = None
 
 class ProductoIngredienteRead(SQLModel):
     ingrediente_id: int
 
 class ProductoRead(ProductoBase):
     id: Optional[int] = None
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: Optional[datetime] = None
     categorias: list[ProductoCategoriaRead] = []
     ingredientes: list[ProductoIngredienteRead] = []
     
@@ -42,3 +40,11 @@ class ProductoCategoriaCreate(SQLModel):
 
 class ProductoCategoriaUpdate(SQLModel):
     es_principal: Optional[bool] = None
+
+T = TypeVar("T")
+
+class PaginatedResponse(ProductoRead, Generic[T]):
+    items:      List[T]
+    page:       int
+    page_size:  int
+    total_pages: int

@@ -1,5 +1,7 @@
 
 
+from math import ceil
+
 from sqlmodel import Session
 
 from app.modules.Producto.unit_of_work import ProductoUnitOfWork
@@ -7,7 +9,7 @@ from fastapi import HTTPException
 
 from app.core.unit_of_work import BaseUnitOfWork
 from app.modules.Producto.model import Producto
-from app.modules.Producto.schema import ProductoCreate
+from app.modules.Producto.schema import PaginatedResponse, ProductoCreate
 from app.modules.ProductoCategoria.model import ProductoCategoria
 from app.modules.ProductoIngredientes.model import ProductoIngrediente
 
@@ -78,6 +80,24 @@ class ProductoService():
                    )
             
             return producto
+        
+    def get_all_paginated(self, page: int, page_size: int) -> PaginatedResponse:
+        if page < 1:
+            raise HTTPException(400, "La página debe ser mayor a 0")
+        if page_size < 1 or page_size > 100:
+            raise HTTPException(400, "El tamaño de página debe estar entre 1 y 100")
+
+        offset = (page - 1) * page_size
+
+        with ProductoUnitOfWork(self._session) as uow:
+            items, total = uow.productos.get_paginated(offset, page_size)
+            return PaginatedResponse(
+                items       = items,
+                total       = total,
+                page        = page,
+                page_size   = page_size,
+                total_pages = ceil(total / page_size) if total > 0 else 1,
+            )
 
     def update(self, product_id: int, data: ProductoCreate):
         with ProductoUnitOfWork(self._session) as uow:
