@@ -2,9 +2,9 @@ from datetime import datetime
 from typing import Optional
 
 
+from Backend.app.modules.direccionEntrega.model import DireccionEntrega
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.modules.direccionEntrega.model import DireccionEntrega
 from app.modules.rol.model import Rol
 from app.modules.refreshToken.model import RefreshToken
 

@@ -36,7 +36,6 @@ app.include_router(producto_router)
 app.include_router(categoria_router)
 app.include_router(ingrediente_router)
 
-
 @app.get("/")
 def root():
     return {"message": "API funcionando 🚀"}

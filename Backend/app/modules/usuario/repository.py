@@ -47,3 +47,4 @@ class UsuarioRepository(BaseRepository):
         usuario.delete_at = datetime.utcnow(
             self.session.add(usuario)
         )
+       

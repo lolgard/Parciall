@@ -15,7 +15,11 @@ class Categoria(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     deleted_at: datetime | None = None
 
+    padre_id: int | None = Field(default=None, foreign_key="categoria.id")
 
-    # Relación: una Categoria tiene muchos items
-    
+
     productos: list["ProductoCategoria"] = Relationship(back_populates="categoria")
+
+    parent = Relationship("Category", remote_side=[id], back_populates="children")
+    
+    children = Relationship("Category", back_populates="parent", cascade="all, delete")

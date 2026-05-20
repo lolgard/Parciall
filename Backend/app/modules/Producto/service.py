@@ -40,14 +40,7 @@ class ProductoService():
                     detail="El producto debe tener una categoría"
                 )
 
-            # 2. validar que exista en DB
-            categoria = uow.categorias.get_by_id(data.categorias)
-
-            if not categoria:
-                raise HTTPException(
-                    status_code=404,
-                    detail="La categoría no existe"
-                )
+           
          #  crear producto 
             data_dict = data.dict(exclude={"categorias", "ingredientes"})
             producto = Producto(**data_dict)
