@@ -1,14 +1,17 @@
+from typing import TYPE_CHECKING, Optional
 from datetime import datetime
-from typing import Optional
-
-
-from Backend.app.modules.direccionEntrega.model import DireccionEntrega
 from sqlmodel import Field, Relationship, SQLModel
+from app.modules.usuarioRol.model import UsuarioRol
 
-from app.modules.rol.model import Rol
-from app.modules.refreshToken.model import RefreshToken
+if TYPE_CHECKING:
+    from app.modules.rol.model import Rol
+    from app.modules.direccionEntrega.model import DireccionEntrega
+    from app.modules.refreshToken.model import RefreshToken
+
+ 
 
 class Usuario(SQLModel, table=True):
+    __tablename__ = "usuario"
     id: int | None = Field(default=None, primary_key=True)    
     name: str
     lastname: str
@@ -22,5 +25,8 @@ class Usuario(SQLModel, table=True):
 
     
     refreshToken: list["RefreshToken"] = Relationship(back_populates="usuario")
-    roles: list["Rol"] = Relationship(back_populates="usuarios", link_model="UsuarioRol")
+
+
+    usuarioRol: list["UsuarioRol"] = Relationship(back_populates="usuario")
+
     direccionEntrega: list["DireccionEntrega"] = Relationship(back_populates="usuario")

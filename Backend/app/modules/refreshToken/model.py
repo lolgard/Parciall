@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Optional
-
+from typing import TYPE_CHECKING, Optional
 from sqlmodel import Field, Relationship, SQLModel
-from app.modules.usuario.model import Usuario
+from app.modules.usuario.model import Usuario   
+
 
 class RefreshToken (SQLModel,table = True):
-    id:int
+    id: Optional[int] = Field(default=None, primary_key=True)
     usuario_id: Optional[int] = Field(default=None, foreign_key="usuario.id", ondelete="CASCADE")
     token_hash: str = Field(unique=True, index=True)
     

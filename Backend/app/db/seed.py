@@ -16,6 +16,7 @@ from sqlmodel import Session, select
 from app.core.database import engine, create_all_tables
 from app.modules.usuario.model import Usuario
 from app.core.security import hash_password
+from app.modules.unidadDeMedida.model import UnidadDeMedida
 
 USUARIOS_INICIALES = [
     {
@@ -38,6 +39,44 @@ USUARIOS_INICIALES = [
     },
 ]
 
+UNIDADES_INICIALES = [
+
+    {
+        "nombre": "gramo",
+        "simbolo": "g",
+        "tipo": "masa",
+    },
+
+    {
+        "nombre": "kilogramo",
+        "simbolo": "kg",
+        "tipo": "masa",
+    },
+
+    {
+        "nombre": "mililitro",
+        "simbolo": "ml",
+        "tipo": "volumen",
+    },
+
+    {
+        "nombre": "litro",
+        "simbolo": "l",
+        "tipo": "volumen",
+    },
+
+    {
+        "nombre": "docena",
+        "simbolo": "doc",
+        "tipo": "unidad",
+    },
+
+    {
+        "nombre": "unidad",
+        "simbolo": "un",
+        "tipo": "unidad",
+    },
+]
 
 def run() -> None:
     print("=== Seed — Seguridad JWT (PostgreSQL) ===")
@@ -63,9 +102,37 @@ def run() -> None:
                 session.add(usuario)
                 print(f"  [+] Creado:    {data['name']} / {data['password_hash']}  (roles={data['roles']})")
 
+        for data in UNIDADES_INICIALES:
+
+            existing = session.exec(
+                select(UnidadDeMedida).where(
+                    UnidadDeMedida.nombre == data["nombre"]
+                )
+            ).first()
+
+            if existing:
+
+                print(
+                    f"[=] Unidad ya existe: {data['nombre']}"
+                )
+
+            else:
+
+                unidad = UnidadDeMedida(
+                    nombre=data["nombre"],
+                    simbolo=data["simbolo"],
+                    tipo=data["tipo"],
+                )
+
+                session.add(unidad)
+
+                print(
+                    f"[+] Unidad creada: {data['nombre']}"
+                )
+
         session.commit()
 
-    print("\nUsuarios disponibles para pruebas:")
+    print("\nUsuarios y unidades de medida disponibles para pruebas:")
     print("  admin / Admin1234!  → roles=admin  (acceso total)")
     print("  juan  / Juan1234!   → roles=user   (acceso básico)")
     print()

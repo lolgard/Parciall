@@ -1,10 +1,12 @@
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import Column, ForeignKey, Integer, SQLModel, Field, Relationship
 from typing import List, TYPE_CHECKING
 from datetime import datetime
+from app.modules.unidadDeMedida.model import UnidadDeMedida
 
 if TYPE_CHECKING:
     from app.modules.ProductoCategoria.model import ProductoCategoria
     from app.modules.ProductoIngredientes.model import ProductoIngrediente
+    
 
 class Producto(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -22,3 +24,13 @@ class Producto(SQLModel, table=True):
     # Relación: un producto puede estar en muchos items
     categorias: list["ProductoCategoria"] = Relationship(back_populates="producto")
     ingredientes: list["ProductoIngrediente"] = Relationship(back_populates="producto")
+
+    # Relación: un producto tiene una unidad de medida
+    unidad_medida_id: int = Field(
+    foreign_key="unidad_medida.id"
+)
+
+    unidad_medida: "UnidadDeMedida" = Relationship(
+    back_populates="productos",
+    
+)

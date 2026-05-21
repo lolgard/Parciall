@@ -1,8 +1,9 @@
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Relationship, SQLModel, Field
-from app.modules.usuario.model import Usuario
+if TYPE_CHECKING:
+    from app.modules.usuario.model import Usuario
 
 class DireccionEntrega(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)

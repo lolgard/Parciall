@@ -1,8 +1,10 @@
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional
-from app.modules.Categoria.model import Categoria
-from app.modules.Producto.model import Producto
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime
+
+if TYPE_CHECKING:
+    from app.modules.Categoria.model import Categoria
+    from app.modules.Producto.model import Producto
 
 class ProductoCategoria(SQLModel, table=True):
     producto_id: int = Field(foreign_key="producto.id", primary_key=True)
