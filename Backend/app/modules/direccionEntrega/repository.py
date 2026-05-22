@@ -44,6 +44,8 @@ class DireccionEntregaRepository(BaseRepository):
         return direccionEntrega
     
     def delete(self,direccionEntrega:DireccionEntrega)-> None:
-        direccionEntrega.delete_at = datetime.utcnow(
-            self.session.add(direccionEntrega)
-        )
+      
+
+        direccionEntrega.deleted_at = datetime.utcnow()
+        self.session.add(direccionEntrega)
+        self.session.flush()

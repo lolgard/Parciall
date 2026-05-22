@@ -45,9 +45,11 @@ class UsuarioRepository(BaseRepository):
         return usuario
     
     def delete(self,usuario:Usuario)-> None:
-        usuario.deleted_at = datetime.utcnow(
-            self.session.add(usuario)
-        )
+
+        usuario.deleted_at = datetime.utcnow()
+        self.session.add(usuario)
+        self.session.flush()
+            
        #---------------------------Repository UsuarioRol---------------------------
     from app.modules.usuarioRol.model import UsuarioRol
 class UsuarioRolRepository(BaseRepository):

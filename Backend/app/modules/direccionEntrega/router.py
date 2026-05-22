@@ -26,7 +26,7 @@ def get_by_id(id: int, service: DireccionEntregaService = Depends(get_service)):
     return service.get_by_id(id)
 
 
-@router.put("/{id}", response_model=DireccionEntregaRead)
+@router.patch("/{id}", response_model=DireccionEntregaRead)
 def update_direccion(id: int, data: DireccionEntregaUpdate, service: DireccionEntregaService = Depends(get_service)):
     return service.update(id, data)
 
