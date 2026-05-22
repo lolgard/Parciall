@@ -2,7 +2,10 @@
 from datetime import datetime
 
 from sqlmodel import Relationship, SQLModel,Field
-from typing import TYPE_CHECKING, Optional 
+from typing import TYPE_CHECKING, Optional
+
+from app.modules.estadoPedido.model import EstadoPedido
+from app.modules.formaPago.model import FormaPago 
 
 if TYPE_CHECKING:
     from app.modules.detallePedido.model import DetallePedido
@@ -31,4 +34,5 @@ class Pedido(SQLModel, table=True):
     deleted_at: datetime | None = None
 
     detalles_pedido: list["DetallePedido"] = Relationship(back_populates="pedido")
-    
+    estado_pedido: Optional["EstadoPedido"] = Relationship(back_populates="pedidos")
+    formas_pago: list["FormaPago"] = Relationship(back_populates="pedidos")
