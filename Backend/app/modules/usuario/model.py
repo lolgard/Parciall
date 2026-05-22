@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from app.modules.direccionEntrega.model import DireccionEntrega
     from app.modules.refreshToken.model import RefreshToken
     from app.modules.usuarioRol.model import UsuarioRol
+    from app.modules.pedido.model import Pedido
 
 
  
@@ -30,3 +31,4 @@ class Usuario(SQLModel, table=True):
     usuarioRol: list["UsuarioRol"] = Relationship(back_populates="usuario")
 
     direccionEntrega: list["DireccionEntrega"] = Relationship(back_populates="usuario")
+    pedidos: list["Pedido"] = Relationship(back_populates="usuario")

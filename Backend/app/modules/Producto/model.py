@@ -2,10 +2,12 @@ from sqlmodel import Column, ForeignKey, Integer, SQLModel, Field, Relationship
 from typing import List, TYPE_CHECKING
 from datetime import datetime
 from app.modules.unidadDeMedida.model import UnidadDeMedida
+from app.modules.detallePedido.model import DetallePedido
 
 if TYPE_CHECKING:
     from app.modules.ProductoCategoria.model import ProductoCategoria
     from app.modules.ProductoIngredientes.model import ProductoIngrediente
+
     
 
 class Producto(SQLModel, table=True):
@@ -34,3 +36,6 @@ class Producto(SQLModel, table=True):
     back_populates="productos",
     
 )
+    #relacion con detallePedido
+    detalles_pedido: list["DetallePedido"] = Relationship(back_populates="producto")
+    

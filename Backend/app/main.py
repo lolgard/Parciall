@@ -5,6 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 # Importar modelos para que SQLAlchemy los registre
 import app.modules.refreshToken.model
 import app.modules.rol.model
+from app.modules.pedido.model import Pedido
+from app.modules.detallePedido.model import DetallePedido
+from app.modules.Producto.model import Producto
 
 # Routers
 from app.modules.Producto.router import router as producto_router
