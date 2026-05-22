@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from app.core.repository import BaseRepository
 from app.modules.usuario.model import Usuario
+from app.modules.usuarioRol.model import UsuarioRol
 
 
 class UsuarioRepository(BaseRepository):
@@ -47,4 +48,43 @@ class UsuarioRepository(BaseRepository):
         usuario.delete_at = datetime.utcnow(
             self.session.add(usuario)
         )
-       
+       #---------------------------Repository UsuarioRol---------------------------
+    from app.modules.usuarioRol.model import UsuarioRol
+class UsuarioRolRepository(BaseRepository):
+    def __init__(self, session:Session):
+            self.session=session
+
+    def add(self,rel:UsuarioRol):
+            self.session.add(rel)
+            return rel
+        
+    def get_by_usuario(self,usuario_id:int)-> list[UsuarioRol]:
+            return self.session.exec(
+                select(UsuarioRol).where(
+                    UsuarioRol.usuario_id == usuario_id
+                    )
+                ).all()
+        
+    def get_by_rol(self, rol_id: int) -> list[UsuarioRol]:
+            return self.session.exec(
+                select(UsuarioRol).where(
+                    UsuarioRol.rol_id == rol_id
+                )
+            ).all()
+
+    def delete(self, rel: UsuarioRol) -> None:
+            self.session.delete(rel)
+            self.session.flush()
+
+    #----------------------------repository de refresh token--------------------------------------
+    from datetime import datetime
+
+from sqlmodel import Session, select
+
+from app.modules.refreshToken import RefreshToken
+
+
+class RefreshTokenRepository:
+
+    def __init__(self, session: Session):
+        self.session = session

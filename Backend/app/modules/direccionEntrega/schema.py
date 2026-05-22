@@ -13,14 +13,14 @@ class DireccionEntregaBase(SQLModel):
     es_principal : bool = False
 
 class DireccionEntregaCreate(DireccionEntregaBase):
-    pass
+    usuario_id: Optional[int] = None
 
 class DireccionEntregaRead(DireccionEntregaBase):
     id: int
     usuario_id: Optional[int] = None
 
 class DireccionEntregaUpdate(SQLModel):
-  
+    usuario_id: Optional[int] = None
     alias : Optional[str] = None
     linea1 : Optional[int] = None
     linea2 : Optional[int] = None

@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING, Optional
 from datetime import datetime
 from sqlmodel import Field, Relationship, SQLModel
-from app.modules.usuarioRol.model import UsuarioRol
 
 if TYPE_CHECKING:
     from app.modules.rol.model import Rol
     from app.modules.direccionEntrega.model import DireccionEntrega
     from app.modules.refreshToken.model import RefreshToken
+    from app.modules.usuarioRol.model import UsuarioRol
+
 
  
 
@@ -25,7 +26,6 @@ class Usuario(SQLModel, table=True):
 
     
     refreshToken: list["RefreshToken"] = Relationship(back_populates="usuario")
-
 
     usuarioRol: list["UsuarioRol"] = Relationship(back_populates="usuario")
 

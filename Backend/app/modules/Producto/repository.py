@@ -115,3 +115,6 @@ class ProductoIngredienteRepository(BaseRepository):
 
     def delete(self, rel: ProductoIngrediente):
         self.session.delete(rel)
+    
+    
+    
