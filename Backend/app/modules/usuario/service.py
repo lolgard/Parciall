@@ -3,6 +3,8 @@ from datetime import datetime
 from fastapi import HTTPException
 from sqlmodel import select
 
+from app.modules.refreshToken.model import RefreshToken
+from app.modules.usuario.repository import RefreshTokenRepository
 from app.modules.usuario.unit_of_work import UsuarioUnitOfWork
 from app.modules.usuario.model import Usuario
 from app.modules.usuario.schema import UsuarioCreate, UsuarioUpdate
@@ -80,6 +82,7 @@ class UsuarioService:
             if not usuario:
                 raise HTTPException(404, "Usuario no encontrado")
             uow.usuarios.delete(usuario)
+            
 
             
 class UsuarioRolService:
@@ -133,3 +136,99 @@ class UsuarioRolService:
         with UsuarioUnitOfWork(self._session) as uow:
             return uow.usuario_roles.get_by_rol(rol_id)
         
+    #_----------------------------service de refresh token--------------------------------------
+    
+    
+class RefreshTokenService:
+
+    def __init__(self, session):
+        self._session = session
+
+    def create_token(
+        self,
+        user_id: int,
+        token_hash: str,
+        expire_at: datetime
+    ):
+
+        with UsuarioUnitOfWork(self._session) as uow:
+
+            usuario = uow.usuarios.get_by_id(user_id)
+            if not usuario:
+                raise HTTPException(404, "Usuario no encontrado")
+
+            token = RefreshToken(
+                user_id=user_id,
+                token_hash=token_hash,
+                expire_at=expire_at,
+                created_at=datetime.utcnow(),
+                revoked_at=None
+            )
+
+            uow.refresh_tokens.add(token)
+            return token
+    
+    def validate_token(self, token_hash: str):
+
+        with UsuarioUnitOfWork(self._session) as uow:
+
+            token = uow.refresh_tokens.get_by_token_hash(token_hash)
+
+            if not token:
+                raise HTTPException(401, "Refresh token inválido")
+
+            if token.revoked_at is not None:
+                raise HTTPException(401, "Refresh token revocado")
+
+            if token.expire_at < datetime.utcnow():
+                raise HTTPException(401, "Refresh token expirado")
+
+            return token
+        
+    def refresh(self, token_hash: str):
+
+        with UsuarioUnitOfWork(self._session) as uow:
+
+            token = uow.refresh_tokens.get_by_token_hash(token_hash)
+
+            if not token:
+                raise HTTPException(401, "Token inválido")
+
+            if token.revoked_at is not None:
+                raise HTTPException(401, "Token revocado")
+
+            if token.expire_at < datetime.utcnow():
+                raise HTTPException(401, "Token expirado")
+
+            # revocar token viejo (rotación)
+            token.revoked_at = datetime.utcnow()
+            uow.refresh_tokens.update(token)
+
+            return token
+        
+    def revoke_token(self, token_hash: str):
+
+        with UsuarioUnitOfWork(self._session) as uow:
+
+            token = uow.refresh_tokens.get_by_token_hash(token_hash)
+
+            if not token:
+                raise HTTPException(404, "Token no encontrado")
+
+            if token.revoked_at is not None:
+                raise HTTPException(400, "Token ya revocado")
+
+            token.revoked_at = datetime.utcnow()
+            uow.refresh_tokens.update(token)
+
+            return {"message": "Token revocado"}
+        
+    def get_user_tokens(self, user_id: int):
+
+        with UsuarioUnitOfWork(self._session) as uow:
+
+            usuario = uow.usuarios.get_by_id(user_id)
+            if not usuario:
+                raise HTTPException(404, "Usuario no encontrado")
+
+            return uow.refresh_tokens.get_by_user(user_id)
