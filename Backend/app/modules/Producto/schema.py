@@ -24,6 +24,7 @@ class ProductoRead(ProductoBase):
 class ProductoCreate(ProductoBase):
     categorias: list[int]
     ingredientes: Optional[list[int]] = None
+    unidad_medida_id: int
 
 class ProductoUpdate(SQLModel):
     name: Optional[str] = None
@@ -32,6 +33,7 @@ class ProductoUpdate(SQLModel):
     disponible: Optional[bool] = None
     categorias: Optional[list[int]] = None
     ingredientes: Optional[list[int]] = None
+    unidad_medida_id: Optional[int] = None
 
 class ProductoCategoriaCreate(SQLModel):
     categoria_id: int
