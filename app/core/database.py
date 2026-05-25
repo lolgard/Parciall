@@ -32,7 +32,9 @@ def create_db_and_tables():
 
 
 def get_session():
-    session = Session(engine)
+    # expire_on_commit=False: ORM objects keep their data after commit so
+    # FastAPI can serialize them in the response without triggering lazy loads.
+    session = Session(engine, expire_on_commit=False)
     try:
         yield session
     finally:

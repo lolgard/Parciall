@@ -8,10 +8,13 @@ from app.modules.Producto.unit_of_work import ProductoUnitOfWork
 from fastapi import HTTPException
 
 from app.core.unit_of_work import BaseUnitOfWork
+from app.core.logger import get_logger
 from app.modules.Producto.model import Producto
 from app.modules.Producto.schema import PaginatedResponse, ProductoCreate
 from app.modules.ProductoCategoria.model import ProductoCategoria
 from app.modules.ProductoIngredientes.model import ProductoIngrediente
+
+logger = get_logger("service.producto")
 
 class ProductoService():
     def __init__(self, session):
@@ -79,8 +82,9 @@ class ProductoService():
                        )
                    )
             
+            logger.info(f"Producto creado: id={producto.id} name='{producto.name}'")
             return producto
-        
+
     def get_all_paginated(self, page: int, page_size: int) -> PaginatedResponse:
         if page < 1:
             raise HTTPException(400, "La página debe ser mayor a 0")
@@ -91,6 +95,7 @@ class ProductoService():
 
         with ProductoUnitOfWork(self._session) as uow:
             items, total = uow.productos.get_paginated(offset, page_size)
+            logger.info(f"Productos paginados: page={page} size={page_size} total={total}")
             return PaginatedResponse(
                 items       = items,
                 total       = total,
@@ -100,11 +105,13 @@ class ProductoService():
             )
 
     def update(self, product_id: int, data: ProductoCreate):
+        logger.info(f"Actualizando producto id={product_id}")
         with ProductoUnitOfWork(self._session) as uow:
             producto = uow.productos.get_by_id(product_id)
 
             if not producto:
-                 raise HTTPException(404, "Producto no encontrado")
+                logger.warning(f"Producto id={product_id} no encontrado para update")
+                raise HTTPException(404, "Producto no encontrado")
         
             producto.name = data.name
             producto.price = data.price
@@ -146,9 +153,11 @@ class ProductoService():
             return producto
 
     def delete(self, product_id: int):
+        logger.info(f"Eliminando producto id={product_id}")
         with ProductoUnitOfWork(self._session) as uow:
             producto = uow.productos.get_by_id(product_id)
             if not producto:
+                logger.warning(f"Producto id={product_id} no encontrado para delete")
                 raise HTTPException(404, "Producto no encontrado")
         
             viejas_cats = uow.producto_categorias.get_by_producto(product_id)

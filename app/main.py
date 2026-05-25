@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from app.core.database import create_db_and_tables
+from app.core.logger import setup_logging, get_logger
+from app.core.logging_middleware import LoggingMiddleware
 from fastapi.middleware.cors import CORSMiddleware
+
+setup_logging()
+logger = get_logger("app")
 
 # Importar modelos para que SQLAlchemy los registre
 import app.modules.refreshToken.model
@@ -31,6 +36,7 @@ origins = [
     "http://localhost:5173",
 ]
 
+app.add_middleware(LoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -43,6 +49,7 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+    logger.info("Base de datos inicializada")
 
 
 #  Registrar routers
