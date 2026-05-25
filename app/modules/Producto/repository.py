@@ -2,7 +2,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 
-from sqlalchemy import select as sa_select
+from sqlalchemy import select as sa_select, func as sa_func
 from sqlalchemy.orm import selectinload
 
 from app.core.repository import BaseRepository
@@ -44,20 +44,33 @@ class ProductoRepository(BaseRepository):
             self.session.refresh(producto)
         return productos
     
-    def get_paginated(self, offset: int, limit: int) -> tuple[list[Producto], int]:
-        total = self.session.exec(
-            select(func.count()).select_from(Producto).where(Producto.deleted_at == None)
-        ).one()
-        # Use SQLAlchemy native execute() so selectinload is applied correctly.
-        # SQLModel's exec() strips loader options in some versions.
-        stmt = (
-            sa_select(Producto)
-            .where(Producto.deleted_at == None)
-            .options(selectinload(Producto.categorias))
-            .offset(offset)
-            .limit(limit)
+    def get_paginated(
+        self,
+        offset: int,
+        limit: int,
+        search: str | None = None,
+        categoria_id: int | None = None,
+    ) -> tuple[list[Producto], int]:
+        q = sa_select(Producto).where(Producto.deleted_at == None)
+
+        if search:
+            q = q.where(Producto.name.ilike(f"%{search}%"))
+
+        if categoria_id is not None:
+            q = q.join(
+                ProductoCategoria,
+                Producto.id == ProductoCategoria.producto_id,
+            ).where(ProductoCategoria.categoria_id == categoria_id)
+
+        total = self.session.execute(
+            sa_select(sa_func.count()).select_from(q.subquery())
+        ).scalar_one()
+
+        items = list(
+            self.session.execute(
+                q.options(selectinload(Producto.categorias)).offset(offset).limit(limit)
+            ).scalars().all()
         )
-        items = list(self.session.execute(stmt).scalars().all())
         return items, total
 
     def update(self, producto: Producto) -> Producto:

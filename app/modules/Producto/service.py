@@ -85,7 +85,13 @@ class ProductoService():
             logger.info(f"Producto creado: id={producto.id} name='{producto.name}'")
             return producto
 
-    def get_all_paginated(self, page: int, page_size: int) -> PaginatedResponse:
+    def get_all_paginated(
+        self,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        categoria_id: int | None = None,
+    ) -> PaginatedResponse:
         if page < 1:
             raise HTTPException(400, "La página debe ser mayor a 0")
         if page_size < 1 or page_size > 100:
@@ -94,12 +100,17 @@ class ProductoService():
         offset = (page - 1) * page_size
 
         with ProductoUnitOfWork(self._session) as uow:
-            items, total = uow.productos.get_paginated(offset, page_size)
+            items, total = uow.productos.get_paginated(
+                offset, page_size, search=search, categoria_id=categoria_id
+            )
             # Serialize to ProductoRead while the ORM session is still active.
             # SQLModel table-model .dict() returns None for relationship fields,
             # so we must call model_validate() here before the session commits.
             items_read = [ProductoRead.model_validate(item) for item in items]
-            logger.info(f"Productos paginados: page={page} size={page_size} total={total}")
+            logger.info(
+                f"Productos paginados: page={page} size={page_size} "
+                f"search={search!r} categoria_id={categoria_id} total={total}"
+            )
             return PaginatedResponse(
                 items       = items_read,
                 page        = page,
