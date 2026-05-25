@@ -45,7 +45,7 @@ class ProductoCategoriaUpdate(SQLModel):
 
 T = TypeVar("T")
 
-class PaginatedResponse(ProductoRead, Generic[T]):
+class PaginatedResponse(SQLModel, Generic[T]):
     items:      List[T]
     page:       int
     page_size:  int

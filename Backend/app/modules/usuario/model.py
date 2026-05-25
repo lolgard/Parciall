@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Optional
 from datetime import datetime
 from sqlmodel import Field, Relationship, SQLModel
 
+
 if TYPE_CHECKING:
     from app.modules.rol.model import Rol
     from app.modules.direccionEntrega.model import DireccionEntrega
@@ -25,10 +26,10 @@ class Usuario(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     deleted_at: datetime | None = None
 
-    
+    pedidos: list["Pedido"] = Relationship(back_populates="usuario")
     refreshToken: list["RefreshToken"] = Relationship(back_populates="usuario")
 
     usuarioRol: list["UsuarioRol"] = Relationship(back_populates="usuario")
 
     direccionEntrega: list["DireccionEntrega"] = Relationship(back_populates="usuario")
-    pedidos: list["Pedido"] = Relationship(back_populates="usuario")
+    

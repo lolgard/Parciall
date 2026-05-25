@@ -16,6 +16,8 @@ Crea:
 from datetime import datetime, timedelta
 from sqlmodel import Session, select
 from app.core.database import engine, create_db_and_tables
+from app.modules.estadoPedido.model import EstadoPedido
+from app.modules.formaPago.model import FormaPago
 from app.modules.usuario.model import Usuario
 from app.modules.rol.model import Rol
 from app.modules.usuarioRol.model import UsuarioRol
@@ -28,6 +30,9 @@ from app.modules.Categoria.model import Categoria
 from app.modules.Ingrediente.model import Ingrediente
 from app.modules.ProductoCategoria.model import ProductoCategoria
 from app.modules.ProductoIngredientes.model import ProductoIngrediente
+from app.modules.detallePedido.model import DetallePedido
+from app.modules.pedido.model import Pedido
+
 
 
 
@@ -77,6 +82,73 @@ USUARIOS_INICIALES = [
         "password_hash": "Cocinero1234!",
         "phone_number":  222222222,
         "rol_code":      "COCINERO",
+    },
+]
+
+# ── Estados de pedido ────────────────────────────────────────────────────────
+
+ESTADOS_PEDIDO_INICIALES = [
+    {
+        "codigo": "PENDIENTE",
+        "descripcion": "Pedido pendiente de confirmación",
+        "orden": 1,
+        "es_terminal": False,
+    },
+    {
+        "codigo": "CONFIRMADO",
+        "descripcion": "Pedido confirmado",
+        "orden": 2,
+        "es_terminal": False,
+    },
+    {
+        "codigo": "EN_PREPARACION",
+        "descripcion": "Pedido en preparación",
+        "orden": 3,
+        "es_terminal": False,
+    },
+    {
+        "codigo": "LISTO",
+        "descripcion": "Pedido listo para entregar",
+        "orden": 4,
+        "es_terminal": False,
+    },
+    {
+        "codigo": "ENTREGADO",
+        "descripcion": "Pedido entregado",
+        "orden": 5,
+        "es_terminal": True,
+    },
+    {
+        "codigo": "CANCELADO",
+        "descripcion": "Pedido cancelado",
+        "orden": 6,
+        "es_terminal": True,
+    },
+]
+
+
+# ── Formas de pago ───────────────────────────────────────────────────────────
+
+FORMAS_PAGO_INICIALES = [
+    {
+        "codigo": "EFECTIVO",
+        "descripcion": "Pago en efectivo",
+        "habilitado": True,
+    },
+    {
+        "codigo": "TARJETA",
+        "descripcion": "Pago con tarjeta",
+        "habilitado": True,
+    },
+    {
+        "codigo": "TRANSFERENCIA",
+        "descripcion": "Pago por transferencia bancaria",
+        "habilitado": True,
+    },
+    {
+        "codigo": "MERCADO_PAGO",
+        "descripcion": "Pago mediante Mercado Pago",
+        "habilitado": True,
     },
 ]
 
@@ -137,7 +209,7 @@ def run() -> None:
                 phone_number  = data["phone_number"],
             )
             session.add(usuario)
-            session.flush()  # obtener usuario.id antes de crear UsuarioRol
+            session.flush()  
 
             rol = session.exec(
                 select(Rol).where(Rol.code == data["rol_code"])
@@ -164,6 +236,37 @@ def run() -> None:
             else:
                 session.add(UnidadDeMedida(**data))
                 print(f"  [+] Creada:    {data['name']} ({data['symbol']})")
+                
+        # 4. Estados de pedido
+        print("\n-- Estados de pedido --")
+        for data in ESTADOS_PEDIDO_INICIALES:
+            existing = session.exec(
+                select(EstadoPedido).where(
+                    EstadoPedido.codigo == data["codigo"]
+                )
+            ).first()
+
+            if existing:
+                print(f"  [=] Ya existe: {data['codigo']}")
+            else:
+                session.add(EstadoPedido(**data))
+                print(f"  [+] Creado:    {data['codigo']}")
+
+
+        # 5. Formas de pago
+        print("\n-- Formas de pago --")
+        for data in FORMAS_PAGO_INICIALES:
+            existing = session.exec(
+                select(FormaPago).where(
+                    FormaPago.codigo == data["codigo"]
+                )
+            ).first()
+
+            if existing:
+                print(f"  [=] Ya existe: {data['codigo']}")
+            else:
+                session.add(FormaPago(**data))
+                print(f"  [+] Creado:    {data['codigo']}")
 
         session.commit()
 

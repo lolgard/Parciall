@@ -11,4 +11,4 @@ class FormaPago(SQLModel, table=True):
     habilitado : bool = Field(default=True)
 
     
-    pedido: "Pedido" = Relationship(back_populates="forma_pago")
+    pedidos: list["Pedido"] = Relationship(back_populates="formas_pago")

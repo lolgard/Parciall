@@ -8,6 +8,9 @@ import app.modules.rol.model
 from app.modules.pedido.model import Pedido
 from app.modules.detallePedido.model import DetallePedido
 from app.modules.Producto.model import Producto
+from app.modules.estadoPedido.model import EstadoPedido
+from app.modules.formaPago.model import FormaPago
+from app.modules.usuario.model import Usuario
 
 # Routers
 from app.modules.Producto.router import router as producto_router
@@ -15,6 +18,8 @@ from app.modules.Categoria.router import router as categoria_router
 from app.modules.Ingrediente.router import router as ingrediente_router
 from app.modules.direccionEntrega.router import router as direccion_entrega_router
 from app.modules.usuario.router import router as usuario_router
+from app.modules.pedido.router import router as pedido_router
+from app.modules.detallePedido.router import router as detalle_pedido_router
 
 #crea la app
 app = FastAPI(
@@ -47,6 +52,8 @@ app.include_router(ingrediente_router)
 
 app.include_router(direccion_entrega_router)
 app.include_router(usuario_router)
+app.include_router(pedido_router)
+app.include_router(detalle_pedido_router)
 
 @app.get("/")
 def root():

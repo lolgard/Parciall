@@ -24,6 +24,7 @@ class DetallePedido(SQLModel, table=True):
 
     #---------------------------audit fields:----------------------------
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    deleted_at: datetime | None = None
 
     
     pedido: Optional["Pedido"] = Relationship(back_populates="detalles_pedido")
