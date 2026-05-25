@@ -2,6 +2,8 @@ from datetime import datetime
 
 from fastapi import HTTPException
 
+from sqlalchemy.orm import selectinload
+
 from app.core.repository import BaseRepository
 from app.modules.Producto.model import Producto
 from app.modules.ProductoCategoria.model import ProductoCategoria
@@ -42,8 +44,16 @@ class ProductoRepository(BaseRepository):
         return productos
     
     def get_paginated(self, offset: int, limit: int) -> tuple[list[Producto], int]:
-        total   = self.session.exec(select(func.count()).select_from(Producto)).one()
-        items   = self.session.exec(select(Producto).offset(offset).limit(limit)).all()
+        total = self.session.exec(
+            select(func.count()).select_from(Producto).where(Producto.deleted_at == None)
+        ).one()
+        items = self.session.exec(
+            select(Producto)
+            .where(Producto.deleted_at == None)
+            .options(selectinload(Producto.categorias))
+            .offset(offset)
+            .limit(limit)
+        ).all()
         return items, total
 
     def update(self, producto: Producto) -> Producto:
