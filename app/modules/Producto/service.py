@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from app.core.unit_of_work import BaseUnitOfWork
 from app.core.logger import get_logger
 from app.modules.Producto.model import Producto
-from app.modules.Producto.schema import PaginatedResponse, ProductoCreate
+from app.modules.Producto.schema import PaginatedResponse, ProductoCreate, ProductoRead
 from app.modules.ProductoCategoria.model import ProductoCategoria
 from app.modules.ProductoIngredientes.model import ProductoIngrediente
 
@@ -95,10 +95,13 @@ class ProductoService():
 
         with ProductoUnitOfWork(self._session) as uow:
             items, total = uow.productos.get_paginated(offset, page_size)
+            # Serialize to ProductoRead while the ORM session is still active.
+            # SQLModel table-model .dict() returns None for relationship fields,
+            # so we must call model_validate() here before the session commits.
+            items_read = [ProductoRead.model_validate(item) for item in items]
             logger.info(f"Productos paginados: page={page} size={page_size} total={total}")
             return PaginatedResponse(
-                items       = items,
-                total       = total,
+                items       = items_read,
                 page        = page,
                 page_size   = page_size,
                 total_pages = ceil(total / page_size) if total > 0 else 1,
