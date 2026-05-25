@@ -2,6 +2,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 
+from sqlalchemy import select as sa_select
 from sqlalchemy.orm import selectinload
 
 from app.core.repository import BaseRepository
@@ -47,13 +48,16 @@ class ProductoRepository(BaseRepository):
         total = self.session.exec(
             select(func.count()).select_from(Producto).where(Producto.deleted_at == None)
         ).one()
-        items = self.session.exec(
-            select(Producto)
+        # Use SQLAlchemy native execute() so selectinload is applied correctly.
+        # SQLModel's exec() strips loader options in some versions.
+        stmt = (
+            sa_select(Producto)
             .where(Producto.deleted_at == None)
             .options(selectinload(Producto.categorias))
             .offset(offset)
             .limit(limit)
-        ).all()
+        )
+        items = list(self.session.execute(stmt).scalars().all())
         return items, total
 
     def update(self, producto: Producto) -> Producto:
