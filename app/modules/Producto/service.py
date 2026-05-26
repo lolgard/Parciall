@@ -8,10 +8,13 @@ from app.modules.Producto.unit_of_work import ProductoUnitOfWork
 from fastapi import HTTPException
 
 from app.core.unit_of_work import BaseUnitOfWork
+from app.core.logger import get_logger
 from app.modules.Producto.model import Producto
-from app.modules.Producto.schema import PaginatedResponse, ProductoCreate
+from app.modules.Producto.schema import PaginatedResponse, ProductoCreate, ProductoRead
 from app.modules.ProductoCategoria.model import ProductoCategoria
 from app.modules.ProductoIngredientes.model import ProductoIngrediente
+
+logger = get_logger("service.producto")
 
 class ProductoService():
     def __init__(self, session):
@@ -79,9 +82,16 @@ class ProductoService():
                        )
                    )
             
+            logger.info(f"Producto creado: id={producto.id} name='{producto.name}'")
             return producto
-        
-    def get_all_paginated(self, page: int, page_size: int) -> PaginatedResponse:
+
+    def get_all_paginated(
+        self,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        categoria_id: int | None = None,
+    ) -> PaginatedResponse:
         if page < 1:
             raise HTTPException(400, "La página debe ser mayor a 0")
         if page_size < 1 or page_size > 100:
@@ -90,21 +100,32 @@ class ProductoService():
         offset = (page - 1) * page_size
 
         with ProductoUnitOfWork(self._session) as uow:
-            items, total = uow.productos.get_paginated(offset, page_size)
+            items, total = uow.productos.get_paginated(
+                offset, page_size, search=search, categoria_id=categoria_id
+            )
+            # Serialize to ProductoRead while the ORM session is still active.
+            # SQLModel table-model .dict() returns None for relationship fields,
+            # so we must call model_validate() here before the session commits.
+            items_read = [ProductoRead.model_validate(item) for item in items]
+            logger.info(
+                f"Productos paginados: page={page} size={page_size} "
+                f"search={search!r} categoria_id={categoria_id} total={total}"
+            )
             return PaginatedResponse(
-                items       = items,
-                total       = total,
+                items       = items_read,
                 page        = page,
                 page_size   = page_size,
                 total_pages = ceil(total / page_size) if total > 0 else 1,
             )
 
     def update(self, product_id: int, data: ProductoCreate):
+        logger.info(f"Actualizando producto id={product_id}")
         with ProductoUnitOfWork(self._session) as uow:
             producto = uow.productos.get_by_id(product_id)
 
             if not producto:
-                 raise HTTPException(404, "Producto no encontrado")
+                logger.warning(f"Producto id={product_id} no encontrado para update")
+                raise HTTPException(404, "Producto no encontrado")
         
             producto.name = data.name
             producto.price = data.price
@@ -146,9 +167,11 @@ class ProductoService():
             return producto
 
     def delete(self, product_id: int):
+        logger.info(f"Eliminando producto id={product_id}")
         with ProductoUnitOfWork(self._session) as uow:
             producto = uow.productos.get_by_id(product_id)
             if not producto:
+                logger.warning(f"Producto id={product_id} no encontrado para delete")
                 raise HTTPException(404, "Producto no encontrado")
         
             viejas_cats = uow.producto_categorias.get_by_producto(product_id)
