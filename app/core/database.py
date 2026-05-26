@@ -18,7 +18,11 @@ if _is_sqlite:
         connect_args=connect_args,
     )
 else:
-    connect_args = {"sslmode": "require"}
+    # Usar SSL solo si no es una conexión a base de datos local
+    connect_args = {}
+    if "localhost" not in DATABASE_URL and "127.0.0.1" not in DATABASE_URL:
+        connect_args = {"sslmode": "require"}
+        
     engine = create_engine(
         DATABASE_URL,
         echo=False,

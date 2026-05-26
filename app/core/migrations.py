@@ -1,16 +1,37 @@
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 
 
 def run_migrations(engine):
     """Aplica migraciones incrementales a la DB. Idempotente."""
+    # Usamos el inspector de SQLAlchemy que funciona tanto en SQLite como en PostgreSQL
+    inspector = inspect(engine)
+    
+    # Si la tabla 'pedido' no existe todavía, SQLModel la creará en startup
+    if "pedido" not in inspector.get_table_names():
+        return
+
+    # Obtenemos las columnas actuales de la tabla 'pedido'
+    cols = {col["name"] for col in inspector.get_columns("pedido")}
+
     with engine.connect() as conn:
-        result = conn.execute(text("PRAGMA table_info(pedido)"))
-        cols = {row[1] for row in result.fetchall()}
+        is_sqlite = engine.url.drivername.startswith("sqlite")
 
         if "nombre_cliente" not in cols:
-            _recreate_pedido_table(conn)
+            if is_sqlite:
+                # En SQLite recreamos la tabla ya que no soporta ALTER TABLE complejo
+                _recreate_pedido_table(conn)
+            else:
+                # En PostgreSQL agregamos las columnas directamente de forma segura
+                for col, col_type in [
+                    ("ip_cliente", "TEXT"),
+                    ("extra_data", "TEXT"),
+                    ("nombre_cliente", "VARCHAR"),
+                    ("telefono", "VARCHAR"),
+                ]:
+                    if col not in cols:
+                        conn.execute(text(f"ALTER TABLE pedido ADD COLUMN IF NOT EXISTS {col} {col_type}"))
         else:
-            # Solo agregar columnas faltantes
+            # Solo agregar columnas que falten
             for col, col_type in [
                 ("ip_cliente", "TEXT"),
                 ("extra_data", "TEXT"),
