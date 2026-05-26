@@ -49,6 +49,9 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+    from app.core.database import engine
+    from app.core.migrations import run_migrations
+    run_migrations(engine)
     logger.info("Base de datos inicializada")
 
 

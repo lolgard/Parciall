@@ -1,14 +1,25 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.core.database import get_session
 from app.modules.pedido.service import PedidoService
-from app.modules.pedido.schema import PedidoCreate, PedidoRead
+from app.modules.pedido.schema import PedidoCreate, PedidoRead, GuestOrderCreate, GuestOrderResponse
 
 router = APIRouter(prefix="/pedidos", tags=["pedidos"])
 
 
 def get_service(session=Depends(get_session)):
     return PedidoService(session)
+
+
+@router.post("/guest", response_model=GuestOrderResponse)
+def create_guest_order(
+    data: GuestOrderCreate,
+    request: Request,
+    service: PedidoService = Depends(get_service),
+):
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+    return service.create_guest_order(data, client_ip, user_agent)
 
 
 @router.post("/", response_model=PedidoRead)
