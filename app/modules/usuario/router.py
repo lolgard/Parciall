@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from app.core.database import get_session
 
 from app.modules.usuario.service import UsuarioService
@@ -17,8 +17,12 @@ def create_usuario(data: UsuarioCreate, service: UsuarioService = Depends(get_se
 
 
 @router.get("/", response_model=list[UsuarioRead])
-def get_all(service: UsuarioService = Depends(get_service)):
-    return service.get_all()
+def get_all(
+    exclude_role: str = Query(None, description="Excluir usuarios con este rol"),
+    role: str = Query(None, description="Filtrar por este rol"),
+    service: UsuarioService = Depends(get_service)
+):
+    return service.get_all(exclude_role=exclude_role, role=role)
 
 
 @router.get("/{id}", response_model=UsuarioDetallesRead)

@@ -10,6 +10,7 @@ from app.modules.usuario.model import Usuario
 from app.modules.usuario.schema import UsuarioCreate, UsuarioUpdate
 from app.core.security import hash_password
 from app.modules.usuarioRol.model import UsuarioRol
+from datetime import timedelta
 
 
 class UsuarioService:
@@ -38,22 +39,55 @@ class UsuarioService:
             usuario = Usuario(**data.dict(exclude={"roles"}))
             uow._session.add(usuario)
             uow._session.flush()
-            uow._session.refresh(usuario)
-            return usuario
 
-    def get_all(self):
+            roles_asignados = []
+            if data.roles:
+                for rol_code in set(data.roles):
+                    rel = UsuarioRol(
+                        usuario_id=usuario.id,
+                        rol_codigo=rol_code,
+                        create_at=datetime.utcnow(),
+                        expires_at=datetime.utcnow() + timedelta(days=365)
+                    )
+                    uow._session.add(rel)
+                    roles_asignados.append(rol_code)
+
+            uow._session.commit()
+            uow._session.refresh(usuario)
+
+            u_dict = usuario.dict()
+            u_dict["roles"] = roles_asignados
+            return u_dict
+
+    def get_all(self, exclude_role: str = None, role: str = None):
         with UsuarioUnitOfWork(self._session) as uow:
             usuarios = uow.usuarios.get_all()
             if not usuarios:
-                raise HTTPException(404, "No se encontraron usuarios")
-            return usuarios
+                return []
+            
+            result = []
+            for u in usuarios:
+                roles = [r.rol_codigo for r in u.usuarioRol] if u.usuarioRol else []
+                
+                if exclude_role and exclude_role in roles:
+                    continue
+                if role and role not in roles:
+                    continue
+                    
+                u_dict = u.dict()
+                u_dict["roles"] = roles
+                result.append(u_dict)
+            return result
 
     def get_by_id(self, usuario_id: int):
         with UsuarioUnitOfWork(self._session) as uow:
             usuario = uow.usuarios.get_by_id(usuario_id)
             if not usuario:
                 raise HTTPException(404, "Usuario no encontrado")
-            return usuario
+            
+            u_dict = usuario.dict()
+            u_dict["roles"] = [r.rol_codigo for r in usuario.usuarioRol] if usuario.usuarioRol else []
+            return u_dict
 
     def update(self, usuario_id: int, data: UsuarioUpdate):
         with UsuarioUnitOfWork(self._session) as uow:
@@ -73,8 +107,30 @@ class UsuarioService:
                 usuario.password_hash = hash_password(data.password_hash)
 
             uow.usuarios.update(usuario)
+
+            # Actualizar roles si fueron enviados
+            if data.roles is not None:
+                # Borrar roles viejos
+                viejos_roles = uow._session.exec(select(UsuarioRol).where(UsuarioRol.usuario_id == usuario_id)).all()
+                for rel in viejos_roles:
+                    uow._session.delete(rel)
+                
+                # Asignar nuevos
+                for rol_code in set(data.roles):
+                    rel = UsuarioRol(
+                        usuario_id=usuario.id,
+                        rol_codigo=rol_code,
+                        create_at=datetime.utcnow(),
+                        expires_at=datetime.utcnow() + timedelta(days=365)
+                    )
+                    uow._session.add(rel)
+
+            uow._session.commit()
             uow._session.refresh(usuario)
-            return usuario
+            
+            u_dict = usuario.dict()
+            u_dict["roles"] = [r.rol_codigo for r in usuario.usuarioRol] if usuario.usuarioRol else []
+            return u_dict
 
     def delete(self, usuario_id: int):
         with UsuarioUnitOfWork(self._session) as uow:

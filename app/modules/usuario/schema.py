@@ -16,10 +16,10 @@ class UsuarioCreate(UsuarioBase):
 class UsuarioRead(UsuarioBase):
     id: int
     deleted_at: Optional[str] = None
+    roles: list[str] = []
 
 class UsuarioDetallesRead(UsuarioRead):
     direccionEntrega: list[str] = []
-    roles: list[RolRead] = []
 
 
 class UsuarioRolRead(SQLModel):

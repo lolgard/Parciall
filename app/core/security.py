@@ -17,22 +17,15 @@ from datetime import datetime, timedelta, timezone
 # Librería para JWT (encode/decode + manejo de errores)
 from jose import JWTError, jwt
 
-# Contexto de hashing (abstracción sobre bcrypt)
-from passlib.context import CryptContext
+import bcrypt
 
 # Configuración central (SECRET_KEY, ALGORITHM, expiración, etc.)
 from app.core.config import settings
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# HASHING DE CONTRASEÑAS (bcrypt)
+# HASHING DE CONTRASEÑAS (bcrypt nativo)
 # ─────────────────────────────────────────────────────────────────────────────
-
-# Configura el contexto de hashing:
-# - "bcrypt" → algoritmo seguro para contraseñas
-# - deprecated="auto" → permite migraciones futuras de algoritmo
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(plain: str) -> str:
     """
@@ -42,7 +35,7 @@ def hash_password(plain: str) -> str:
     - bcrypt incluye salt automáticamente
     - cada hash generado para el mismo input es distinto
     """
-    return pwd_context.hash(plain)
+    return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -54,7 +47,10 @@ def verify_password(plain: str, hashed: str) -> bool:
     - Recalcula el hash
     - Compara de forma segura (timing-attack safe)
     """
-    return pwd_context.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
 
 
 # ─────────────────────────────────────────────────────────────────────────────

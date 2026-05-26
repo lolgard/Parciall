@@ -45,14 +45,19 @@ ROLES_INICIALES = [
         "descripcion": "Acceso total al sistema.",
     },
     {
-        "code":       "CLIENTE",
+        "code":       "CLIENT",
         "name":       "Cliente",
         "descripcion": "Puede realizar y consultar sus pedidos.",
     },
     {
-        "code":       "COCINERO",
-        "name":       "Cocinero",
-        "descripcion": "Gestiona y prepara los pedidos en cocina.",
+        "code":       "STOCK",
+        "name":       "Encargado de Stock",
+        "descripcion": "Gestiona el stock de productos.",
+    },
+    {
+        "code":       "PEDIDOS",
+        "name":       "Encargado de Pedidos",
+        "descripcion": "Gestiona los pedidos.",
     },
 ]
 
@@ -73,7 +78,7 @@ USUARIOS_INICIALES = [
         "email":         "cliente@example.com",
         "password_hash": "Cliente1234!",
         "phone_number":  111111111,
-        "rol_code":      "CLIENTE",
+        "rol_code":      "CLIENT",
     },
     {
         "name":          "cocinero",
@@ -81,7 +86,7 @@ USUARIOS_INICIALES = [
         "email":         "cocinero@example.com",
         "password_hash": "Cocinero1234!",
         "phone_number":  222222222,
-        "rol_code":      "COCINERO",
+        "rol_code":      "PEDIDOS",
     },
 ]
 
@@ -271,9 +276,9 @@ def run() -> None:
         session.commit()
 
     print("\n=== Credenciales de prueba ===")
-    print("  admin    / Admin1234!    → ADMIN")
-    print("  cliente  / Cliente1234!  → CLIENTE")
-    print("  cocinero / Cocinero1234! → COCINERO")
+    print("  admin    / Admin1234!    -> ADMIN")
+    print("  cliente  / Cliente1234!  -> CLIENTE")
+    print("  cocinero / Cocinero1234! -> COCINERO")
     print()
 
 

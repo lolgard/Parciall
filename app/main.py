@@ -20,6 +20,7 @@ from app.modules.direccionEntrega.router import router as direccion_entrega_rout
 from app.modules.usuario.router import router as usuario_router
 from app.modules.pedido.router import router as pedido_router
 from app.modules.detallePedido.router import router as detalle_pedido_router
+from app.modules.auth.router import router as auth_router
 
 #crea la app
 app = FastAPI(
@@ -54,6 +55,7 @@ app.include_router(direccion_entrega_router)
 app.include_router(usuario_router)
 app.include_router(pedido_router)
 app.include_router(detalle_pedido_router)
+app.include_router(auth_router)
 
 @app.get("/")
 def root():

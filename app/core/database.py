@@ -11,8 +11,8 @@ if not DATABASE_URL:
 engine = create_engine(
     DATABASE_URL,
     echo=True,
-    pool_pre_ping=True,
-    connect_args={"sslmode": "require"}
+    pool_pre_ping=True
+    # connect_args={"sslmode": "require"}
 )
 
 def create_db_and_tables():
