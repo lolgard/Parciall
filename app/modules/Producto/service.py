@@ -78,7 +78,8 @@ class ProductoService():
                     uow.producto_ingredientes.add(
                        ProductoIngrediente(
                            producto_id=producto.id,
-                           ingrediente_id=ingre_id
+                           ingrediente_id=ingre_id,
+                           unidad_medida_id=producto.unidad_medida_id
                        )
                    )
             

@@ -16,8 +16,9 @@ class ProductoIngrediente(SQLModel,table=True):
     ingrediente: "Ingrediente" = Relationship(back_populates="items")
     
     unidad_medida_id: int = Field(
-    foreign_key="unidad_medida.id"
-)
+        default=6,
+        foreign_key="unidad_medida.id"
+    )
 
     unidad_medida: "UnidadDeMedida" = Relationship(
     back_populates="producto_ingredientes"

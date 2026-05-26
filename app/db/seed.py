@@ -32,6 +32,7 @@ from app.modules.ProductoCategoria.model import ProductoCategoria
 from app.modules.ProductoIngredientes.model import ProductoIngrediente
 from app.modules.detallePedido.model import DetallePedido
 from app.modules.pedido.model import Pedido
+from app.modules.historialEstadoPedido.model import HistorialEstadoPedido
 
 
 

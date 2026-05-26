@@ -16,6 +16,7 @@ from app.modules.Producto.model import Producto
 from app.modules.estadoPedido.model import EstadoPedido
 from app.modules.formaPago.model import FormaPago
 from app.modules.usuario.model import Usuario
+import app.modules.historialEstadoPedido.model
 
 # Routers
 from app.modules.Producto.router import router as producto_router
