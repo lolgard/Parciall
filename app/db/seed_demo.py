@@ -19,6 +19,7 @@ from app.modules.pedido.model import Pedido
 from app.modules.detallePedido.model import DetallePedido
 from app.modules.estadoPedido.model import EstadoPedido
 from app.modules.formaPago.model import FormaPago
+from app.modules.historialEstadoPedido.model import HistorialEstadoPedido
 
 from app.modules.Categoria.model import Categoria
 from app.modules.Ingrediente.model import Ingrediente

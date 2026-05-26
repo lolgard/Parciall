@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.modules.estadoPedido.model import EstadoPedido
     from app.modules.formaPago.model import FormaPago
     from app.modules.usuario.model import Usuario
+    from app.modules.historialEstadoPedido.model import HistorialEstadoPedido
 
 class Pedido(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -39,3 +40,4 @@ class Pedido(SQLModel, table=True):
     estado_pedido: "EstadoPedido" = Relationship(back_populates="pedidos")
     formas_pago: Optional["FormaPago"] = Relationship(back_populates="pedidos")
     usuario: Optional["Usuario"] = Relationship(back_populates="pedidos")
+    historial_estados: list["HistorialEstadoPedido"] = Relationship(back_populates="pedido")

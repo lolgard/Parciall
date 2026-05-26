@@ -25,9 +25,25 @@ class PedidoCreate(PedidoBase):
 
 class PedidoRead(PedidoBase):
     id: int
+    estado_codigo: Optional[str] = None
+    forma_pago_codigo: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None
+
+from app.modules.detallePedido.schema import DetallePedidoRead
+from app.modules.usuario.schema import UsuarioRead
+
+class HistorialEstadoPedidoRead(SQLModel):
+    id: int
+    estado_codigo: str
+    observaciones: Optional[str] = None
+    created_at: datetime
+
+class PedidoConDetallesRead(PedidoRead):
+    detalles_pedido: List[DetallePedidoRead] = []
+    usuario: Optional[UsuarioRead] = None
+    historial_estados: List[HistorialEstadoPedidoRead] = []
 
 
 class PedidoUpdate(SQLModel):
