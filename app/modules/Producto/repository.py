@@ -2,6 +2,9 @@ from datetime import datetime
 
 from fastapi import HTTPException
 
+from sqlalchemy import select as sa_select, func as sa_func
+from sqlalchemy.orm import selectinload
+
 from app.core.repository import BaseRepository
 from app.modules.Producto.model import Producto
 from app.modules.ProductoCategoria.model import ProductoCategoria
@@ -41,9 +44,33 @@ class ProductoRepository(BaseRepository):
             self.session.refresh(producto)
         return productos
     
-    def get_paginated(self, offset: int, limit: int) -> tuple[list[Producto], int]:
-        total   = self.session.exec(select(func.count()).select_from(Producto)).one()
-        items   = self.session.exec(select(Producto).offset(offset).limit(limit)).all()
+    def get_paginated(
+        self,
+        offset: int,
+        limit: int,
+        search: str | None = None,
+        categoria_id: int | None = None,
+    ) -> tuple[list[Producto], int]:
+        q = sa_select(Producto).where(Producto.deleted_at == None)
+
+        if search:
+            q = q.where(Producto.name.ilike(f"%{search}%"))
+
+        if categoria_id is not None:
+            q = q.join(
+                ProductoCategoria,
+                Producto.id == ProductoCategoria.producto_id,
+            ).where(ProductoCategoria.categoria_id == categoria_id)
+
+        total = self.session.execute(
+            sa_select(sa_func.count()).select_from(q.subquery())
+        ).scalar_one()
+
+        items = list(
+            self.session.execute(
+                q.options(selectinload(Producto.categorias)).offset(offset).limit(limit)
+            ).scalars().all()
+        )
         return items, total
 
     def update(self, producto: Producto) -> Producto:

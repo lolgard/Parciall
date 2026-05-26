@@ -17,10 +17,13 @@ def create_Producto(data:ProductoCreate, service:ProductoService = Depends(get_s
 #getall
 @router.get("/", response_model=PaginatedResponse[ProductoRead])
 def get_all(
-    page:      int = Query(default=1,  ge=1,   description="Número de página"),
-    page_size: int = Query(default=10, ge=1, le=100, description="Items por página"),
-    service:ProductoService = Depends (get_service)):
-    return service.get_all_paginated(page, page_size)
+    page:         int       = Query(default=1,    ge=1,    description="Número de página"),
+    page_size:    int       = Query(default=12,   ge=1, le=100, description="Items por página"),
+    search:       str | None = Query(default=None, description="Buscar por nombre"),
+    categoria_id: int | None = Query(default=None, description="Filtrar por categoría"),
+    service: ProductoService = Depends(get_service),
+):
+    return service.get_all_paginated(page, page_size, search=search, categoria_id=categoria_id)
 #get_porId
 @router.get("/{id}", response_model=ProductoRead)
 def get_by_id(id:int,service:ProductoService =Depends(get_service)):

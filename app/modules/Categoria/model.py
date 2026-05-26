@@ -10,7 +10,7 @@ class Categoria(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     nombre:str
     descripcion:str
-    imagen_url: str
+    imagen_url: str | None = None
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
