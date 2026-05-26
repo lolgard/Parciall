@@ -1,3 +1,5 @@
+video explicacion 
+https://drive.google.com/drive/folders/1VX5V1lqaQgTj-3K96T0uXAvy79Q_gjZd?usp=drive_link
 # Backend — Sistema de Ordenes
 
 API REST desarrollada con **FastAPI** y **SQLModel** para gestionar productos, categorías, ingredientes, pedidos y usuarios.
