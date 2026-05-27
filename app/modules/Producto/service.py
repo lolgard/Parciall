@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from app.core.unit_of_work import BaseUnitOfWork
 from app.core.logger import get_logger
 from app.modules.Producto.model import Producto
-from app.modules.Producto.schema import PaginatedResponse, ProductoCreate, ProductoRead
+from app.modules.Producto.schema import PaginatedResponse, ProductoCreate, ProductoRead, ProductoUpdate
 from app.modules.ProductoCategoria.model import ProductoCategoria
 from app.modules.ProductoIngredientes.model import ProductoIngrediente
 
@@ -119,7 +119,7 @@ class ProductoService():
                 total_pages = ceil(total / page_size) if total > 0 else 1,
             )
 
-    def update(self, product_id: int, data: ProductoCreate):
+    def update(self, product_id: int, data: ProductoUpdate):
         logger.info(f"Actualizando producto id={product_id}")
         with ProductoUnitOfWork(self._session) as uow:
             producto = uow.productos.get_by_id(product_id)
@@ -132,6 +132,7 @@ class ProductoService():
             producto.price = data.price
             producto.stock_cantidad = data.stock_cantidad
             producto.disponible = data.disponible
+            producto.imagen_url = data.imagen_url
 
             viejas_cats = uow.producto_categorias.get_by_producto(product_id)
             for rel in viejas_cats:

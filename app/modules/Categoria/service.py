@@ -2,7 +2,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from app.modules.Categoria.model import Categoria
-from app.modules.Categoria.schema import CategoriaCreate
+from app.modules.Categoria.schema import CategoriaCreate, CategoriaUpdate
 from app.modules.Categoria.unit_of_work import CategoriaUnitOfWork
 
 
@@ -37,7 +37,7 @@ class CategoriaService:
                 raise HTTPException(404, "Categoría no encontrada")
             return categoria
 
-    def update(self, categoria_id: int, data: CategoriaCreate):
+    def update(self, categoria_id: int, data: CategoriaUpdate):
         with CategoriaUnitOfWork(self._session) as uow:
             categoria = uow.categorias.get_by_id(categoria_id)
             if not categoria:

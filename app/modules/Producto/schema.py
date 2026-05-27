@@ -7,11 +7,13 @@ class ProductoBase(SQLModel):
     price: float
     stock_cantidad: int
     disponible: bool = Field(default=True)
+    imagen_url: Optional[str] = None
 
 class ProductoCategoriaRead(SQLModel):
     categoria_id: int
     es_principal: bool
     delete_at: Optional[datetime] = None
+    imagen_url: Optional[str] = None
 
 class ProductoIngredienteRead(SQLModel):
     ingrediente_id: int
@@ -25,6 +27,7 @@ class ProductoCreate(ProductoBase):
     categorias: list[int]
     ingredientes: Optional[list[int]] = None
     unidad_medida_id: int
+  
 
 class ProductoUpdate(SQLModel):
     name: Optional[str] = None
@@ -34,6 +37,7 @@ class ProductoUpdate(SQLModel):
     categorias: Optional[list[int]] = None
     ingredientes: Optional[list[int]] = None
     unidad_medida_id: Optional[int] = None
+    imagen_url: Optional[str] = None
 
 class ProductoCategoriaCreate(SQLModel):
     categoria_id: int
