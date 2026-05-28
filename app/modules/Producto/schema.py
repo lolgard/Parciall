@@ -1,6 +1,8 @@
 from sqlmodel import SQLModel, Field
 from typing import Generic, List, Optional, TypeVar
 from datetime import datetime
+from app.modules.Categoria.schema import CategoriaRead
+from app.modules.Ingrediente.schema import IngredienteRead
 
 class ProductoBase(SQLModel):
     name: str
@@ -14,9 +16,11 @@ class ProductoCategoriaRead(SQLModel):
     es_principal: bool
     delete_at: Optional[datetime] = None
     imagen_url: Optional[str] = None
+    categoria: Optional[CategoriaRead] = None
 
 class ProductoIngredienteRead(SQLModel):
     ingrediente_id: int
+    ingrediente: Optional[IngredienteRead] = None
 
 class ProductoRead(ProductoBase):
     id: Optional[int] = None

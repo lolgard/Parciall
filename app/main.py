@@ -36,6 +36,7 @@ app = FastAPI(
 #cords
 origins = [
     "http://localhost:5173",
+    "http://localhost:5174",
 ]
 
 app.add_middleware(LoggingMiddleware)

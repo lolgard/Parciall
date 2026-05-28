@@ -6,6 +6,14 @@ def run_migrations(engine):
     # Usamos el inspector de SQLAlchemy que funciona tanto en SQLite como en PostgreSQL
     inspector = inspect(engine)
     
+    # Migración para la tabla 'producto' (agregar imagen_url si falta)
+    if "producto" in inspector.get_table_names():
+        prod_cols = {col["name"] for col in inspector.get_columns("producto")}
+        if "imagen_url" not in prod_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE producto ADD COLUMN imagen_url VARCHAR"))
+                conn.commit()
+
     # Si la tabla 'pedido' no existe todavía, SQLModel la creará en startup
     if "pedido" not in inspector.get_table_names():
         return

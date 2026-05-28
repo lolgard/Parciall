@@ -118,66 +118,77 @@ def run():
             {
                 "name": "Hamburguesa Clasica",
                 "price": 3500.0, "stock_cantidad": 20, "disponible": True,
+                "imagen_url": "https://resizer.glanacion.com/resizer/v2/hamburguesa-FHBQ5XJM55H2PFSAFSC6HHESVQ.jpg?auth=c14fd6c0f7fd21e554cb59b5d69f7ee3551b78c00f500eb190a79ae39dc0ae80&width=768&height=512&quality=70&smart=true",
                 "categorias": cat("Hamburguesas"),
                 "ingredientes": ing("Carne vacuna", "Lechuga", "Tomate", "Gluten de trigo"),
             },
             {
                 "name": "Hamburguesa BBQ con Panceta",
                 "price": 4200.0, "stock_cantidad": 15, "disponible": True,
+                "imagen_url": "https://viejodave.com.ar/wp-content/uploads/2024/02/hamburguesa-queso-panceta-huevo-y-cebolla-caramelizada-carne-01.jpg",
                 "categorias": cat("Hamburguesas"),
                 "ingredientes": ing("Carne vacuna", "Panceta", "Queso cheddar", "Cebolla", "Gluten de trigo"),
             },
             {
                 "name": "Hamburguesa Doble",
                 "price": 5500.0, "stock_cantidad": 10, "disponible": True,
+                "imagen_url": "https://http2.mlstatic.com/D_NQ_NP_956244-MLA108194235089_032026-O.webp",
                 "categorias": cat("Hamburguesas"),
                 "ingredientes": ing("Carne vacuna", "Queso cheddar", "Lechuga", "Tomate", "Gluten de trigo"),
             },
             {
                 "name": "Pizza Margherita",
                 "price": 4800.0, "stock_cantidad": 12, "disponible": True,
+                "imagen_url": "https://www.infobae.com/resizer/v2/ARJBYHUD7RCZXB5QHMT7F5T6GA.jpg?auth=447ed956795bc85dfddafbe7c3db0fdc61e2178702b7350573c2e767d32f7e38&smart=true&width=1200&height=900&quality=85",
                 "categorias": cat("Pizzas"),
                 "ingredientes": ing("Salsa de tomate", "Mozzarella", "Albahaca", "Gluten de trigo"),
             },
             {
                 "name": "Pizza Cuatro Quesos",
                 "price": 5600.0, "stock_cantidad": 8, "disponible": True,
+                "imagen_url": "https://pizzafactory.com.ar/wp-content/uploads/2023/01/QUES-001.jpg",
                 "categorias": cat("Pizzas"),
                 "ingredientes": ing("Salsa de tomate", "Mozzarella", "Queso cheddar", "Gluten de trigo"),
             },
             {
                 "name": "Ensalada Cesar",
                 "price": 2800.0, "stock_cantidad": 25, "disponible": True,
+                "imagen_url": "https://www.dosanclas.com.ar/wp-content/smush-webp/2021/08/1452610072Dollarphotoclub_70106956-scaled.jpg.webp",
                 "categorias": cat("Ensaladas"),
                 "ingredientes": ing("Lechuga", "Tomate"),
             },
             {
                 "name": "Ensalada Caprese",
                 "price": 3200.0, "stock_cantidad": 18, "disponible": True,
+                "imagen_url": "https://www.huleymantel.com/uploads/s1/36/17/27/ensalada-caprese-tomates-maduros-queso-mozzarella-hojas-albahaca-fresca-166116-3714.jpeg",
                 "categorias": cat("Ensaladas"),
                 "ingredientes": ing("Tomate", "Mozzarella", "Albahaca"),
             },
             {
                 "name": "Gaseosa 500ml",
                 "price": 1200.0, "stock_cantidad": 50, "disponible": True,
+                "imagen_url": "https://www.casa-segal.com/wp-content/uploads/2020/03/coca-cola-500cc-almacen-gaseosas-casa-segal-mendoza.jpg",
                 "categorias": cat("Bebidas"),
                 "ingredientes": [],
             },
             {
                 "name": "Agua Mineral",
                 "price": 800.0, "stock_cantidad": 60, "disponible": True,
+                "imagen_url": "https://statics.dinoonline.com.ar/imagenes/full_600x600_ma/3040045_f.jpg",
                 "categorias": cat("Bebidas"),
                 "ingredientes": [],
             },
             {
                 "name": "Brownie de Chocolate",
                 "price": 1800.0, "stock_cantidad": 15, "disponible": True,
+                "imagen_url": "https://i.blogs.es/22b5c5/brownie/840_560.jpg",
                 "categorias": cat("Postres"),
                 "ingredientes": ing("Gluten de trigo"),
             },
             {
                 "name": "Tiramisu",
                 "price": 2200.0, "stock_cantidad": 10, "disponible": True,
+                "imagen_url": "https://resizer.glanacion.com/resizer/v2/tiramisu-facil-con-IKZWSK7CUNBJNO5J5YMJBSEPWY.jpg?auth=18d79003c837c67161737a803bb41d21f21f699d21521717d943ee29d49b2fc2&width=880&height=586&quality=70&smart=true",
                 "categorias": cat("Postres"),
                 "ingredientes": [],
             },
@@ -191,8 +202,14 @@ def run():
             ).first()
 
             if existing:
-                print(f"  =  Ya existe: {data['name']}")
-                skipped += 1
+                if existing.imagen_url != data.get("imagen_url"):
+                    existing.imagen_url = data.get("imagen_url")
+                    session.add(existing)
+                    print(f"  [~] Actualizada imagen de: {data['name']}")
+                    created += 1
+                else:
+                    print(f"  =  Ya existe: {data['name']}")
+                    skipped += 1
                 continue
 
             if not data["categorias"]:
@@ -205,6 +222,7 @@ def run():
                 price=data["price"],
                 stock_cantidad=data["stock_cantidad"],
                 disponible=data["disponible"],
+                imagen_url=data.get("imagen_url"),
                 unidad_medida_id=unidad.id,
             )
             session.add(producto)
