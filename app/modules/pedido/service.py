@@ -19,11 +19,11 @@ TRANSICIONES = {
 
 
 class PedidoService:
-    def __init__(self, session):
-        self._session = session
+    def __init__(self, uow: PedidoUnitOfWork):
+        self.uow = uow
 
     def create(self, data: PedidoCreate):
-        with PedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             pedido = Pedido(**data.dict(exclude_unset=True))
             if not pedido.estado_codigo:
                 pedido.estado_codigo = "PENDIENTE"
@@ -31,25 +31,25 @@ class PedidoService:
             
             # Audit trail
             h = HistorialEstadoPedido(pedido_id=pedido.id, estado_codigo=pedido.estado_codigo, observaciones="Creación del pedido")
-            self._session.add(h)
+            uow._session.add(h)
             return pedido
 
     def get_all(self):
-        with PedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             pedidos = uow.pedidos.get_all()
             if not pedidos:
                 return []
             return pedidos
 
     def get_by_id(self, pedido_id: int):
-        with PedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             pedido = uow.pedidos.get_by_id(pedido_id)
             if not pedido:
                 raise HTTPException(404, "Pedido no encontrado")
             return pedido
 
     def update(self, pedido_id: int, data: PedidoUpdate):
-        with PedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             pedido = uow.pedidos.get_by_id(pedido_id)
             if not pedido:
                 raise HTTPException(404, "Pedido no encontrado")
@@ -64,7 +64,7 @@ class PedidoService:
         if nuevo_estado not in ESTADOS_VALIDOS:
             raise HTTPException(400, f"Estado inválido: {nuevo_estado}")
             
-        with PedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             pedido = uow.pedidos.get_by_id(pedido_id)
             if not pedido:
                 raise HTTPException(404, "Pedido no encontrado")
@@ -79,12 +79,12 @@ class PedidoService:
             
             # Audit trail
             h = HistorialEstadoPedido(pedido_id=pedido.id, estado_codigo=nuevo_estado, observaciones="Cambio de estado")
-            self._session.add(h)
+            uow._session.add(h)
             
             return pedido
 
     def delete(self, pedido_id: int):
-        with PedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             pedido = uow.pedidos.get_by_id(pedido_id)
             if not pedido:
                 raise HTTPException(404, "Pedido no encontrado")
@@ -104,7 +104,7 @@ class PedidoService:
             "total_items": sum(item.cantidad for item in data.items),
         }, ensure_ascii=False)
 
-        with PedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             pedido = Pedido(
                 nombre_cliente=data.nombre_cliente,
                 telefono=data.telefono,
@@ -121,7 +121,7 @@ class PedidoService:
             
             # Audit trail
             h = HistorialEstadoPedido(pedido_id=pedido.id, estado_codigo="PENDIENTE", observaciones="Guest Order checkout")
-            self._session.add(h)
+            uow._session.add(h)
 
             for item in data.items:
                 detalle = DetallePedido(
@@ -133,6 +133,6 @@ class PedidoService:
                     subtotal_snapshot=item.subtotal_snapshot,
                     personalizacion=0,
                 )
-                self._session.add(detalle)
+                uow._session.add(detalle)
 
             return GuestOrderResponse.model_validate(pedido)

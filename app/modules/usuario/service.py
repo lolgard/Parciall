@@ -14,18 +14,16 @@ from datetime import timedelta
 
 
 class UsuarioService:
-    def __init__(self, session):
-        self._session = session
+    def __init__(self, uow: UsuarioUnitOfWork):
+        self.uow = uow
 
     def usuario_service_create(self, data: UsuarioCreate):
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             if not data.name or not data.name.strip():
                 raise HTTPException(400, "El nombre no puede estar vacío")
 
             # email único
-            existente = self._session.exec(
-                select(Usuario).where(Usuario.email == data.email)
-            ).first()
+            existente = uow.usuarios.get_by_email(data.email)
             if existente:
                 raise HTTPException(400, "Ya existe un usuario con ese email")
 
@@ -35,10 +33,9 @@ class UsuarioService:
 
             data.password_hash = hash_password(data.password_hash)
 
-            # crear y persistir directamente en la sesión para evitar inconsistencias
+            # crear y persistir usando el repositorio
             usuario = Usuario(**data.dict(exclude={"roles"}))
-            uow._session.add(usuario)
-            uow._session.flush()
+            uow.usuarios.add(usuario)
 
             roles_asignados = []
             if data.roles:
@@ -49,18 +46,15 @@ class UsuarioService:
                         create_at=datetime.utcnow(),
                         expires_at=datetime.utcnow() + timedelta(days=365)
                     )
-                    uow._session.add(rel)
+                    uow.usuario_rol.add(rel)
                     roles_asignados.append(rol_code)
-
-            uow._session.commit()
-            uow._session.refresh(usuario)
 
             u_dict = usuario.dict()
             u_dict["roles"] = roles_asignados
             return u_dict
 
     def get_all(self, exclude_role: str = None, role: str = None):
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             usuarios = uow.usuarios.get_all()
             if not usuarios:
                 return []
@@ -80,7 +74,7 @@ class UsuarioService:
             return result
 
     def get_by_id(self, usuario_id: int):
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             usuario = uow.usuarios.get_by_id(usuario_id)
             if not usuario:
                 raise HTTPException(404, "Usuario no encontrado")
@@ -90,7 +84,7 @@ class UsuarioService:
             return u_dict
 
     def update(self, usuario_id: int, data: UsuarioUpdate):
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             usuario = uow.usuarios.get_by_id(usuario_id)
             if not usuario:
                 raise HTTPException(404, "Usuario no encontrado")
@@ -110,12 +104,12 @@ class UsuarioService:
 
             # Actualizar roles si fueron enviados
             if data.roles is not None:
-                # Borrar roles viejos
-                viejos_roles = uow._session.exec(select(UsuarioRol).where(UsuarioRol.usuario_id == usuario_id)).all()
+                # Borrar roles viejos usando el repositorio
+                viejos_roles = uow.usuario_rol.get_by_usuario(usuario_id)
                 for rel in viejos_roles:
-                    uow._session.delete(rel)
+                    uow.usuario_rol.delete(rel)
                 
-                # Asignar nuevos
+                # Asignar nuevos usando el repositorio
                 for rol_code in set(data.roles):
                     rel = UsuarioRol(
                         usuario_id=usuario.id,
@@ -123,9 +117,9 @@ class UsuarioService:
                         create_at=datetime.utcnow(),
                         expires_at=datetime.utcnow() + timedelta(days=365)
                     )
-                    uow._session.add(rel)
+                    uow.usuario_rol.add(rel)
 
-            uow._session.commit()
+            uow._session.flush()
             uow._session.refresh(usuario)
             
             u_dict = usuario.dict()
@@ -133,7 +127,7 @@ class UsuarioService:
             return u_dict
 
     def delete(self, usuario_id: int):
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             usuario = uow.usuarios.get_by_id(usuario_id)
             if not usuario:
                 raise HTTPException(404, "Usuario no encontrado")
@@ -142,19 +136,19 @@ class UsuarioService:
 
             
 class UsuarioRolService:
-    def __init__(self, session):
-        self._session = session
+    def __init__(self, uow: UsuarioUnitOfWork):
+        self.uow = uow
 
     def asignar_rol(self, usuario_id: int, rol_id: int) -> UsuarioRol:
         """Asigna un rol a un usuario. Lanza error si ya lo tiene."""
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             # Verificar que el usuario existe
             usuario = uow.usuarios.get_by_id(usuario_id)
             if not usuario:
                 raise HTTPException(404, "Usuario no encontrado")
 
             # Verificar que no tenga ya ese rol asignado
-            relaciones = uow.usuario_roles.get_by_usuario(usuario_id)
+            relaciones = uow.usuario_rol.get_by_usuario(usuario_id)
             ya_tiene = any(r.rol_id == rol_id for r in relaciones)
             if ya_tiene:
                 raise HTTPException(400, "El usuario ya tiene ese rol asignado")
@@ -164,41 +158,41 @@ class UsuarioRolService:
                 rol_id=rol_id,
                 expires_at=datetime.utcnow( )
             )
-            return uow.usuario_roles.add(rel)
+            return uow.usuario_rol.add(rel)
 
     def quitar_rol(self, usuario_id: int, rol_id: int) -> None:
         """Elimina la relación usuario-rol. Lanza error si no existe."""
-        with UsuarioUnitOfWork(self._session) as uow:
-            relaciones = uow.usuario_roles.get_by_usuario(usuario_id)
+        with self.uow as uow:
+            relaciones = uow.usuario_rol.get_by_usuario(usuario_id)
             rel = next((r for r in relaciones if r.rol_id == rol_id), None)
 
             if not rel:
                 raise HTTPException(404, "El usuario no tiene ese rol asignado")
 
-            uow.usuario_roles.delete(rel)
+            uow.usuario_rol.delete(rel)
 
     def get_roles_de_usuario(self, usuario_id: int) -> list[UsuarioRol]:
         """Retorna todos los roles de un usuario."""
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             usuario = uow.usuarios.get_by_id(usuario_id)
             if not usuario:
                 raise HTTPException(404, "Usuario no encontrado")
 
-            roles = uow.usuario_roles.get_by_usuario(usuario_id)
+            roles = uow.usuario_rol.get_by_usuario(usuario_id)
             return roles  # lista vacía es válida, no es un 404
 
     def get_usuarios_de_rol(self, rol_id: int) -> list[UsuarioRol]:
         """Retorna todas las relaciones para un rol dado."""
-        with UsuarioUnitOfWork(self._session) as uow:
-            return uow.usuario_roles.get_by_rol(rol_id)
+        with self.uow as uow:
+            return uow.usuario_rol.get_by_rol(rol_id)
         
     #_----------------------------service de refresh token--------------------------------------
     
     
 class RefreshTokenService:
 
-    def __init__(self, session):
-        self._session = session
+    def __init__(self, uow: UsuarioUnitOfWork):
+        self.uow = uow
 
     def create_token(
         self,
@@ -207,7 +201,7 @@ class RefreshTokenService:
         expire_at: datetime
     ):
 
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
 
             usuario = uow.usuarios.get_by_id(user_id)
             if not usuario:
@@ -226,7 +220,7 @@ class RefreshTokenService:
     
     def validate_token(self, token_hash: str):
 
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
 
             token = uow.refresh_tokens.get_by_token_hash(token_hash)
 
@@ -243,7 +237,7 @@ class RefreshTokenService:
         
     def refresh(self, token_hash: str):
 
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
 
             token = uow.refresh_tokens.get_by_token_hash(token_hash)
 
@@ -264,7 +258,7 @@ class RefreshTokenService:
         
     def revoke_token(self, token_hash: str):
 
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
 
             token = uow.refresh_tokens.get_by_token_hash(token_hash)
 
@@ -281,7 +275,7 @@ class RefreshTokenService:
         
     def get_user_tokens(self, user_id: int):
 
-        with UsuarioUnitOfWork(self._session) as uow:
+        with self.uow as uow:
 
             usuario = uow.usuarios.get_by_id(user_id)
             if not usuario:

@@ -7,8 +7,11 @@ from app.modules.estadoPedido.schema import EstadoPedidoCreate, EstadoPedidoRead
 router = APIRouter(prefix="/estados", tags=["estados"])
 
 
+from app.modules.estadoPedido.unit_of_work import EstadoPedidoUnitOfWork
+
 def get_service(session=Depends(get_session)):
-    return EstadoPedidoService(session)
+    uow = EstadoPedidoUnitOfWork(session)
+    return EstadoPedidoService(uow)
 
 
 @router.post("/", response_model=EstadoPedidoRead)

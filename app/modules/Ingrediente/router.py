@@ -5,8 +5,11 @@ from app.modules.Ingrediente.schema import IngredienteCreate, IngredienteRead
 router = APIRouter(prefix="/Ingredientes", tags= ["Ingredientes"])
 
 
+from app.modules.Ingrediente.unit_of_work import IngredienteUnitOfWork
+
 def get_service(session=Depends(get_session)):
-    return IngredienteService(session)
+    uow = IngredienteUnitOfWork(session)
+    return IngredienteService(uow)
 #create
 @router.post("/", response_model=IngredienteRead)
 def create_Ingrediente(data:IngredienteCreate, service:IngredienteService = Depends(get_service)):

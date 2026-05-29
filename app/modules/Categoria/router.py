@@ -7,8 +7,11 @@ from app.modules.Categoria.schema import CategoriaRead
 router = APIRouter(prefix="/categorias", tags= ["categorias"])
 
 
+from app.modules.Categoria.unit_of_work import CategoriaUnitOfWork
+
 def get_service(session=Depends(get_session)):
-    return CategoriaService(session)
+    uow = CategoriaUnitOfWork(session)
+    return CategoriaService(uow)
 
 
 #create

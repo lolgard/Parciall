@@ -7,8 +7,11 @@ from app.modules.pedido.schema import PedidoCreate, PedidoRead, GuestOrderCreate
 router = APIRouter(prefix="/pedidos", tags=["pedidos"])
 
 
+from app.modules.pedido.unit_of_work import PedidoUnitOfWork
+
 def get_service(session=Depends(get_session)):
-    return PedidoService(session)
+    uow = PedidoUnitOfWork(session)
+    return PedidoService(uow)
 
 
 @router.post("/guest", response_model=GuestOrderResponse)
