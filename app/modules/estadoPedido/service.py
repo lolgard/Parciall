@@ -6,11 +6,11 @@ from app.modules.estadoPedido.unit_of_work import EstadoPedidoUnitOfWork
 
 
 class EstadoPedidoService:
-    def __init__(self, session):
-        self._session = session
+    def __init__(self, uow: EstadoPedidoUnitOfWork):
+        self.uow = uow
 
     def create(self, data: EstadoPedidoCreate):
-        with EstadoPedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             existente = uow.estados.get_by_codigo(data.codigo)
             if existente:
                 raise HTTPException(400, "El estado ya existe")
@@ -18,18 +18,18 @@ class EstadoPedidoService:
             return uow.estados.add(estado)
 
     def get_all(self):
-        with EstadoPedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             return uow.estados.get_all()
 
     def get_by_codigo(self, codigo: str):
-        with EstadoPedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             estado = uow.estados.get_by_codigo(codigo)
             if not estado:
                 raise HTTPException(404, "Estado no encontrado")
             return estado
 
     def update(self, codigo: str, data: EstadoPedidoCreate):
-        with EstadoPedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             estado = uow.estados.get_by_codigo(codigo)
             if not estado:
                 raise HTTPException(404, "Estado no encontrado")
@@ -39,7 +39,7 @@ class EstadoPedidoService:
             return uow.estados.update(estado)
 
     def delete(self, codigo: str):
-        with EstadoPedidoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             estado = uow.estados.get_by_codigo(codigo)
             if not estado:
                 raise HTTPException(404, "Estado no encontrado")

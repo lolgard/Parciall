@@ -7,7 +7,8 @@ from app.modules.Producto.schema import PaginatedResponse, ProductoCreate, Produ
 router = APIRouter(prefix="/productos", tags= ["productos"])
 
 def get_service(session=Depends(get_session)):
-    return ProductoService(session)
+    uow = ProductoUnitOfWork(session)
+    return ProductoService(uow)
 
 #create
 @router.post("/", response_model=ProductoRead)

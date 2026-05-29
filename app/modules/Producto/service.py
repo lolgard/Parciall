@@ -17,13 +17,11 @@ from app.modules.ProductoIngredientes.model import ProductoIngrediente
 logger = get_logger("service.producto")
 
 class ProductoService():
-    def __init__(self, session):
-     self._session = session
+    def __init__(self, uow: ProductoUnitOfWork):
+        self.uow = uow
 
     def producto_service_create(self, data: ProductoCreate):
-
-        with ProductoUnitOfWork(self._session) as uow:
-
+        with self.uow as uow:
             if not data.name.strip():
                 raise HTTPException(400, "El nombre no puede estar vacío")
 
@@ -34,7 +32,6 @@ class ProductoService():
                 raise HTTPException(400, "El stock no puede ser negativo")
 
             existente = uow.productos.get_by_name(data.name)
-
             if existente:
                 raise HTTPException(400, "Ya existe un producto con ese nombre")
 
@@ -45,43 +42,39 @@ class ProductoService():
                     detail="El producto debe tener una categoría"
                 )
 
-           
-         #  crear producto 
+            # crear producto 
             data_dict = data.dict(exclude={"categorias", "ingredientes"})
             producto = Producto(**data_dict)
-
             uow.productos.add(producto)
 
-         #  categorías 
+            # categorías 
             for cat_id in set(data.categorias):
-
                 categoria = uow.categorias.get_by_id(cat_id)
                 if not categoria:
-                   raise HTTPException(404, f"Categoria {cat_id} no existe")
+                    raise HTTPException(404, f"Categoria {cat_id} no existe")
 
                 uow.producto_categorias.add(
-                   ProductoCategoria(
+                    ProductoCategoria(
                         producto_id=producto.id,
                         categoria_id=cat_id,
                         es_principal=False
                     )
-               )
+                )
 
-            #ingredientes 
+            # ingredientes 
             if data.ingredientes:
                 for ingre_id in set(data.ingredientes):
-
                     ingrediente = uow.ingredientes.get_by_id(ingre_id)
                     if not ingrediente:
-                       raise HTTPException(404, f"Ingrediente {ingre_id} no existe")
+                        raise HTTPException(404, f"Ingrediente {ingre_id} no existe")
 
                     uow.producto_ingredientes.add(
-                       ProductoIngrediente(
-                           producto_id=producto.id,
-                           ingrediente_id=ingre_id,
-                           unidad_medida_id=producto.unidad_medida_id
-                       )
-                   )
+                        ProductoIngrediente(
+                            producto_id=producto.id,
+                            ingrediente_id=ingre_id,
+                            unidad_medida_id=producto.unidad_medida_id
+                        )
+                    )
             
             logger.info(f"Producto creado: id={producto.id} name='{producto.name}'")
             return producto
@@ -100,13 +93,10 @@ class ProductoService():
 
         offset = (page - 1) * page_size
 
-        with ProductoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             items, total = uow.productos.get_paginated(
                 offset, page_size, search=search, categoria_id=categoria_id
             )
-            # Serialize to ProductoRead while the ORM session is still active.
-            # SQLModel table-model .dict() returns None for relationship fields,
-            # so we must call model_validate() here before the session commits.
             items_read = [ProductoRead.model_validate(item) for item in items]
             logger.info(
                 f"Productos paginados: page={page} size={page_size} "
@@ -121,9 +111,8 @@ class ProductoService():
 
     def update(self, product_id: int, data: ProductoUpdate):
         logger.info(f"Actualizando producto id={product_id}")
-        with ProductoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             producto = uow.productos.get_by_id(product_id)
-
             if not producto:
                 logger.warning(f"Producto id={product_id} no encontrado para update")
                 raise HTTPException(404, "Producto no encontrado")
@@ -147,22 +136,21 @@ class ProductoService():
                         producto_id=product_id,
                         categoria_id=cat_id,
                         es_principal=False
+                    )
                 )
-            )
 
-        uow._session.refresh(producto)
-        return producto
+            uow._session.refresh(producto)
+            return producto
 
-        
     def get_all(self):
-        with ProductoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             producto = uow.productos.get_all()
             if not producto:
                 raise HTTPException(404, "No se encontraron productos") 
             return producto
         
     def get_by_id(self, product_id: int):
-        with ProductoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             producto = uow.productos.get_by_id(product_id)
             if not producto:
                 raise HTTPException(404, "Producto no encontrado")
@@ -170,7 +158,7 @@ class ProductoService():
 
     def delete(self, product_id: int):
         logger.info(f"Eliminando producto id={product_id}")
-        with ProductoUnitOfWork(self._session) as uow:
+        with self.uow as uow:
             producto = uow.productos.get_by_id(product_id)
             if not producto:
                 logger.warning(f"Producto id={product_id} no encontrado para delete")

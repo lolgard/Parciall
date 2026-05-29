@@ -7,8 +7,11 @@ from app.modules.direccionEntrega.schema import DireccionEntregaCreate, Direccio
 router = APIRouter(prefix="/direccionEntrega", tags=["direccionEntrega"])
 
 
+from app.modules.direccionEntrega.unit_of_work import DireccionEntregaUnitOfWork
+
 def get_service(session=Depends(get_session)):
-    return DireccionEntregaService(session)
+    uow = DireccionEntregaUnitOfWork(session)
+    return DireccionEntregaService(uow)
 
 
 @router.post("/", response_model=DireccionEntregaRead)

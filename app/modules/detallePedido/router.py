@@ -10,8 +10,11 @@ from app.modules.detallePedido.schema import (
 router = APIRouter(prefix="/detalles", tags=["detalles"])
 
 
+from app.modules.detallePedido.unit_of_work import DetallePedidoUnitOfWork
+
 def get_service(session=Depends(get_session)):
-    return DetallePedidoService(session)
+    uow = DetallePedidoUnitOfWork(session)
+    return DetallePedidoService(uow)
 
 
 @router.post("/", response_model=DetallePedidoRead)

@@ -3,12 +3,14 @@ from app.core.database import get_session
 
 from app.modules.usuario.service import UsuarioService
 from app.modules.usuario.schema import UsuarioCreate, UsuarioRead, UsuarioDetallesRead, UsuarioUpdate
+from app.modules.usuario.unit_of_work import UsuarioUnitOfWork
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
 
 def get_service(session=Depends(get_session)):
-    return UsuarioService(session)
+    uow = UsuarioUnitOfWork(session)
+    return UsuarioService(uow)
 
 
 @router.post("/", response_model=UsuarioRead)

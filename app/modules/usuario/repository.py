@@ -19,9 +19,21 @@ class UsuarioRepository(BaseRepository):
 
         return usuario
     
-    def get_by_name(self,name:str)-> Usuario:
-        return self. session.exec(
-            select(Usuario).where(Usuario.bane == name)
+    def get_by_name(self, name: str) -> Usuario:
+        return self.session.exec(
+            select(Usuario).where(Usuario.name == name)
+        ).first()
+    
+    def get_by_email(self, email: str) -> Usuario | None:
+        return self.session.exec(
+            select(Usuario).where(Usuario.email == email)
+        ).first()
+
+    def get_by_username(self, username: str) -> Usuario | None:
+        if username.isdigit():
+            return self.get_by_id(int(username))
+        return self.session.exec(
+            select(Usuario).where(Usuario.email == username)
         ).first()
     
     def get_by_id(self, id:int) -> Usuario | None:

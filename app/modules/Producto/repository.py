@@ -51,7 +51,7 @@ class ProductoRepository(BaseRepository):
         search: str | None = None,
         categoria_id: int | None = None,
     ) -> tuple[list[Producto], int]:
-        q = sa_select(Producto).where(Producto.deleted_at == None)
+        q = sa_select(Producto).where(Producto.deleted_at == None).order_by(Producto.id.asc())
 
         if search:
             q = q.where(Producto.name.ilike(f"%{search}%"))
