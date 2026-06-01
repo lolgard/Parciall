@@ -65,6 +65,9 @@ class BaseUnitOfWork:
         """
         self._session.rollback()
     
-def get_uow() -> BaseUnitOfWork:
+from fastapi import Depends
+from app.core.database import get_session
+
+def get_uow(session: Session = Depends(get_session)) -> BaseUnitOfWork:
     """Dependencia FastAPI: provee un UnitOfWork por request."""
-    return BaseUnitOfWork()
+    return BaseUnitOfWork(session)

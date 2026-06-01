@@ -138,8 +138,8 @@ class ProductoService():
                         es_principal=False
                     )
                 )
-
-            uow._session.refresh(producto)
+            
+            uow.productos.update(producto)
             return producto
 
     def get_all(self):

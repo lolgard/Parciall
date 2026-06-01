@@ -54,6 +54,7 @@ class UsuarioRepository(BaseRepository):
     def update(self,usuario:Usuario) ->Usuario:
         self.session.add(usuario)
         self.session.flush()
+        self.session.refresh(usuario)
         return usuario
     
     def delete(self,usuario:Usuario)-> None:

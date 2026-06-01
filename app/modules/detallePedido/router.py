@@ -6,6 +6,7 @@ from app.modules.detallePedido.schema import (
     DetallePedidoCreate,
     DetallePedidoRead,
 )
+from app.core.deps import require_role
 
 router = APIRouter(prefix="/detalles", tags=["detalles"])
 
@@ -17,21 +18,24 @@ def get_service(session=Depends(get_session)):
     return DetallePedidoService(uow)
 
 
-@router.post("/", response_model=DetallePedidoRead)
+# Solo ADMIN puede crear detalles manualmente (normalmente se crean al crear pedido)
+@router.post("/", response_model=DetallePedidoRead, dependencies=[Depends(require_role(["ADMIN"]))])
 def create_detalle(data: DetallePedidoCreate, service: DetallePedidoService = Depends(get_service)):
     return service.create(data)
 
 
-@router.get("/pedido/{pedido_id}", response_model=list[DetallePedidoRead])
+# ADMIN y PEDIDOS pueden ver los detalles de cualquier pedido
+@router.get("/pedido/{pedido_id}", response_model=list[DetallePedidoRead], dependencies=[Depends(require_role(["ADMIN", "PEDIDOS"]))])
 def get_by_pedido(pedido_id: int, service: DetallePedidoService = Depends(get_service)):
     return service.get_by_pedido(pedido_id)
 
 
-@router.get("/{pedido_id}/{producto_id}", response_model=DetallePedidoRead)
+@router.get("/{pedido_id}/{producto_id}", response_model=DetallePedidoRead, dependencies=[Depends(require_role(["ADMIN", "PEDIDOS"]))])
 def get_detalle(pedido_id: int, producto_id: int, service: DetallePedidoService = Depends(get_service)):
     return service.get_by_id(pedido_id, producto_id)
 
 
-@router.delete("/{pedido_id}/{producto_id}")
+# Solo ADMIN puede eliminar detalles
+@router.delete("/{pedido_id}/{producto_id}", dependencies=[Depends(require_role(["ADMIN"]))])
 def delete_detalle(pedido_id: int, producto_id: int, service: DetallePedidoService = Depends(get_service)):
     return service.delete(pedido_id, producto_id)

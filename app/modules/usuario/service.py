@@ -100,8 +100,6 @@ class UsuarioService:
             if data.password_hash:
                 usuario.password_hash = hash_password(data.password_hash)
 
-            uow.usuarios.update(usuario)
-
             # Actualizar roles si fueron enviados
             if data.roles is not None:
                 # Borrar roles viejos usando el repositorio
@@ -119,8 +117,7 @@ class UsuarioService:
                     )
                     uow.usuario_rol.add(rel)
 
-            uow._session.flush()
-            uow._session.refresh(usuario)
+            uow.usuarios.update(usuario)
             
             u_dict = usuario.dict()
             u_dict["roles"] = [r.rol_codigo for r in usuario.usuarioRol] if usuario.usuarioRol else []

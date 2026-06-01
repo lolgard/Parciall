@@ -2,18 +2,29 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlmodel import select
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime, timedelta
 
 from app.core.database import get_session
-from app.core.security import verify_password, create_access_token, decode_access_token
+from app.core.security import verify_password, create_access_token, decode_access_token, hash_password
 from app.modules.usuario.model import Usuario
 from app.modules.usuario.schema import UsuarioDetallesRead
 from app.modules.usuario.service import UsuarioService
+from app.modules.usuario.unit_of_work import UsuarioUnitOfWork
+from app.modules.usuarioRol.model import UsuarioRol
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+    lastname: str
+    phone_number: Optional[int] = None
+
 
 @router.post("/login")
 def login(data: LoginRequest, response: Response, session = Depends(get_session)):
@@ -25,10 +36,6 @@ def login(data: LoginRequest, response: Response, session = Depends(get_session)
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
     
     roles = [r.rol_codigo for r in usuario.usuarioRol] if usuario.usuarioRol else []
-    
-    # Validar que no sea un cliente o que tenga permisos de backoffice
-    if "ADMIN" not in roles and "STOCK" not in roles and "PEDIDOS" not in roles:
-        raise HTTPException(status_code=403, detail="Acceso denegado: rol sin permisos de administrador")
 
     # Generar token
     token = create_access_token(data={"sub": str(usuario.id)})
@@ -46,6 +53,45 @@ def login(data: LoginRequest, response: Response, session = Depends(get_session)
     u_dict = usuario.dict()
     u_dict["roles"] = roles
     return u_dict
+
+
+@router.post("/register")
+def register(data: RegisterRequest, session = Depends(get_session)):
+    uow = UsuarioUnitOfWork(session)
+    with uow:
+        # Verificar email único
+        existente = uow.usuarios.get_by_email(data.email)
+        if existente:
+            raise HTTPException(400, "Ya existe un usuario con ese email")
+        
+        # Hashear la contraseña
+        pwd_hash = hash_password(data.password)
+        
+        usuario = Usuario(
+            email=data.email,
+            name=data.name,
+            lastname=data.lastname,
+            phone_number=data.phone_number,
+            password_hash=pwd_hash
+        )
+        uow.usuarios.add(usuario)
+        
+        # Asignar rol de Cliente (CLIENT) automáticamente
+        rel = UsuarioRol(
+            usuario_id=usuario.id,
+            rol_codigo="CLIENT",
+            create_at=datetime.utcnow(),
+            expires_at=datetime.utcnow() + timedelta(days=365)
+        )
+        uow.usuario_rol.add(rel)
+        
+        uow.usuarios.update(usuario)
+        
+        roles = [r.rol_codigo for r in usuario.usuarioRol] if usuario.usuarioRol else []
+        u_dict = usuario.dict()
+        u_dict["roles"] = roles
+        return u_dict
+
 
 @router.post("/logout")
 def logout(response: Response):

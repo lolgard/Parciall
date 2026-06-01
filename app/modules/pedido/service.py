@@ -1,11 +1,15 @@
 import json
-
 from fastapi import HTTPException
 
 from app.modules.pedido.model import Pedido
-from app.modules.pedido.schema import PedidoCreate, GuestOrderCreate, GuestOrderResponse, PedidoUpdate
+from app.modules.pedido.schema import PedidoCreate, PedidoUpdate
+from app.modules.usuario.schema import UsuarioRead
 from app.modules.pedido.unit_of_work import PedidoUnitOfWork
 from app.modules.historialEstadoPedido.model import HistorialEstadoPedido
+from app.modules.detallePedido.model import DetallePedido
+from app.modules.direccionEntrega.model import DireccionEntrega
+from app.modules.formaPago.model import FormaPago
+from app.modules.Producto.model import Producto
 
 ESTADOS_VALIDOS = ["PENDIENTE", "CONFIRMADO", "EN_PREPARACION", "LISTO", "ENTREGADO", "CANCELADO"]
 TRANSICIONES = {
@@ -22,107 +26,55 @@ class PedidoService:
     def __init__(self, uow: PedidoUnitOfWork):
         self.uow = uow
 
-    def create(self, data: PedidoCreate):
+    def create(self, data: PedidoCreate, current_user_id: int):
         with self.uow as uow:
-            pedido = Pedido(**data.dict(exclude_unset=True))
-            if not pedido.estado_codigo:
-                pedido.estado_codigo = "PENDIENTE"
-            uow.pedidos.add(pedido)
-            
-            # Audit trail
-            h = HistorialEstadoPedido(pedido_id=pedido.id, estado_codigo=pedido.estado_codigo, observaciones="Creación del pedido")
-            uow._session.add(h)
-            return pedido
+            # 1. Validar dirección de entrega
+            direccion = uow.direccion_entregas.get_by_id(data.direccion_entrega_id)
+            if not direccion:
+                raise HTTPException(404, "Dirección de entrega no encontrada")
+            if direccion.usuario_id != current_user_id:
+                raise HTTPException(400, "La dirección de entrega no pertenece al usuario autenticado")
 
-    def get_all(self):
-        with self.uow as uow:
-            pedidos = uow.pedidos.get_all()
-            if not pedidos:
-                return []
-            return pedidos
+            # 2. Validar forma de pago
+            forma_pago = uow.formas_pago.get_by_codigo(data.forma_pago_codigo)
+            if not forma_pago:
+                raise HTTPException(404, "Forma de pago no encontrada")
+            if not forma_pago.habilitado:
+                raise HTTPException(400, "La forma de pago seleccionada no está habilitada")
 
-    def get_by_id(self, pedido_id: int):
-        with self.uow as uow:
-            pedido = uow.pedidos.get_by_id(pedido_id)
-            if not pedido:
-                raise HTTPException(404, "Pedido no encontrado")
-            return pedido
-
-    def update(self, pedido_id: int, data: PedidoUpdate):
-        with self.uow as uow:
-            pedido = uow.pedidos.get_by_id(pedido_id)
-            if not pedido:
-                raise HTTPException(404, "Pedido no encontrado")
-            for field, value in data.dict(exclude_unset=True).items():
-                if field == "estado_codigo" and value != pedido.estado_codigo:
-                    self.avanzar_estado(pedido.id, value)
-                else:
-                    setattr(pedido, field, value)
-            return uow.pedidos.update(pedido)
-
-    def avanzar_estado(self, pedido_id: int, nuevo_estado: str):
-        if nuevo_estado not in ESTADOS_VALIDOS:
-            raise HTTPException(400, f"Estado inválido: {nuevo_estado}")
-            
-        with self.uow as uow:
-            pedido = uow.pedidos.get_by_id(pedido_id)
-            if not pedido:
-                raise HTTPException(404, "Pedido no encontrado")
+            # 3. Validar productos, calcular subtotal y actualizar stock
+            subtotal = 0.0
+            for item in data.items:
+                producto = uow.productos.get_by_id(item.producto_id)
+                if not producto:
+                    raise HTTPException(404, f"Producto con ID {item.producto_id} no encontrado")
+                if not producto.disponible:
+                    raise HTTPException(400, f"El producto '{producto.name}' no está disponible")
+                if producto.stock_cantidad < item.cantidad:
+                    raise HTTPException(400, f"Stock insuficiente para '{producto.name}'. Disponible: {producto.stock_cantidad}")
                 
-            estado_actual = pedido.estado_codigo
-            
-            if nuevo_estado not in TRANSICIONES.get(estado_actual, []):
-                raise HTTPException(400, f"Transición no permitida de {estado_actual} a {nuevo_estado}")
+                # Descontar stock
+                producto.stock_cantidad -= item.cantidad
+                uow.productos.update(producto)
                 
-            pedido.estado_codigo = nuevo_estado
-            uow.pedidos.update(pedido)
-            
-            # Audit trail
-            h = HistorialEstadoPedido(pedido_id=pedido.id, estado_codigo=nuevo_estado, observaciones="Cambio de estado")
-            uow._session.add(h)
-            
-            return pedido
+                # Sumar al subtotal
+                subtotal += item.subtotal_snapshot
 
-    def delete(self, pedido_id: int):
-        with self.uow as uow:
-            pedido = uow.pedidos.get_by_id(pedido_id)
-            if not pedido:
-                raise HTTPException(404, "Pedido no encontrado")
-            uow.pedidos.delete(pedido)
-
-    def create_guest_order(
-        self,
-        data: GuestOrderCreate,
-        client_ip: str,
-        user_agent: str,
-    ) -> GuestOrderResponse:
-        from app.modules.detallePedido.model import DetallePedido
-
-        subtotal = sum(item.subtotal_snapshot for item in data.items)
-        extra = json.dumps({
-            "user_agent": user_agent,
-            "total_items": sum(item.cantidad for item in data.items),
-        }, ensure_ascii=False)
-
-        with self.uow as uow:
+            # 4. Crear el Pedido
             pedido = Pedido(
-                nombre_cliente=data.nombre_cliente,
-                telefono=data.telefono,
-                notas=data.notas,
-                ip_cliente=client_ip,
-                extra_data=extra,
+                usuario_id=current_user_id,
+                direccion_entrega_id=data.direccion_entrega_id,
+                estado_codigo="PENDIENTE",
+                forma_pago_codigo=data.forma_pago_codigo,
                 subtotal=subtotal,
                 descuento=0.0,
                 costo_envio=0.0,
                 total=subtotal,
-                estado_codigo="PENDIENTE"
+                notas=data.notas
             )
-            uow.pedidos.add(pedido)  # flush → pedido.id asignado
-            
-            # Audit trail
-            h = HistorialEstadoPedido(pedido_id=pedido.id, estado_codigo="PENDIENTE", observaciones="Guest Order checkout")
-            uow._session.add(h)
+            uow.pedidos.add(pedido)  # flush -> genera pedido.id
 
+            # 5. Crear los DetallePedido
             for item in data.items:
                 detalle = DetallePedido(
                     pedido_id=pedido.id,
@@ -133,6 +85,106 @@ class PedidoService:
                     subtotal_snapshot=item.subtotal_snapshot,
                     personalizacion=0,
                 )
-                uow._session.add(detalle)
+                uow.detalles.add(detalle)
 
-            return GuestOrderResponse.model_validate(pedido)
+            # 6. Registrar en historial a través del repositorio
+            h = HistorialEstadoPedido(
+                pedido_id=pedido.id,
+                estado_codigo="PENDIENTE",
+                observaciones="Creación del pedido"
+            )
+            uow.historial.add(h)
+
+            return pedido
+
+    def get_all(self, current_user: UsuarioRead):
+        with self.uow as uow:
+            pedidos = uow.pedidos.get_all()
+            if not pedidos:
+                return []
+            
+            # Si el usuario solo es cliente (CLIENT), filtrar sus propios pedidos
+            is_employee = any(r in ["ADMIN", "PEDIDOS", "STOCK"] for r in current_user.roles)
+            if not is_employee:
+                return [p for p in pedidos if p.usuario_id == current_user.id]
+            return pedidos
+
+    def get_by_id(self, pedido_id: int, current_user: UsuarioRead):
+        with self.uow as uow:
+            pedido = uow.pedidos.get_by_id(pedido_id)
+            if not pedido:
+                raise HTTPException(404, "Pedido no encontrado")
+            
+            is_employee = any(r in ["ADMIN", "PEDIDOS", "STOCK"] for r in current_user.roles)
+            if not is_employee and pedido.usuario_id != current_user.id:
+                raise HTTPException(403, "Acceso denegado a este pedido")
+            return pedido
+
+    def update(self, pedido_id: int, data: PedidoUpdate, current_user: UsuarioRead):
+        with self.uow as uow:
+            pedido = uow.pedidos.get_by_id(pedido_id)
+            if not pedido:
+                raise HTTPException(404, "Pedido no encontrado")
+            for field, value in data.dict(exclude_unset=True).items():
+                if field == "estado_codigo" and value != pedido.estado_codigo:
+                    self.avanzar_estado(pedido.id, value, current_user)
+                else:
+                    setattr(pedido, field, value)
+            return uow.pedidos.update(pedido)
+
+    def avanzar_estado(self, pedido_id: int, nuevo_estado: str, current_user: UsuarioRead):
+        if nuevo_estado not in ESTADOS_VALIDOS:
+            raise HTTPException(400, f"Estado inválido: {nuevo_estado}")
+            
+        with self.uow as uow:
+            pedido = uow.pedidos.get_by_id(pedido_id)
+            if not pedido:
+                raise HTTPException(404, "Pedido no encontrado")
+                
+            estado_actual = pedido.estado_codigo
+            roles = current_user.roles
+            
+            # 1. Validar transición de estado (flujo válido)
+            if nuevo_estado not in TRANSICIONES.get(estado_actual, []):
+                raise HTTPException(400, f"Transición no permitida de {estado_actual} a {nuevo_estado}")
+                
+            # 2. Validar permisos por rol
+            # ADMIN → puede hacer cualquier transición
+            # PEDIDOS → avanza todos los estados y puede cancelar
+            # CLIENT → solo puede cancelar su propio pedido en estado PENDIENTE
+            autorizado = False
+            
+            if "ADMIN" in roles:
+                autorizado = True
+            elif "PEDIDOS" in roles:
+                # PEDIDOS puede avanzar o cancelar cualquier pedido
+                autorizado = True
+            elif "CLIENT" in roles:
+                # CLIENT solo puede cancelar su propio pedido cuando está PENDIENTE
+                if nuevo_estado == "CANCELADO" and estado_actual == "PENDIENTE":
+                    if pedido.usuario_id == current_user.id:
+                        autorizado = True
+                    
+            if not autorizado:
+                raise HTTPException(
+                    403,
+                    f"No tenés permisos para cambiar el estado de {estado_actual} a {nuevo_estado}. "
+                    f"Tus roles son: {roles}"
+                )
+                
+            pedido.estado_codigo = nuevo_estado
+            uow.pedidos.update(pedido)
+            
+            # Registrar cambio en historial a través del repositorio
+            obs = f"Cambio de estado por {current_user.name} ({', '.join(current_user.roles)})"
+            h = HistorialEstadoPedido(pedido_id=pedido.id, estado_codigo=nuevo_estado, observaciones=obs)
+            uow.historial.add(h)
+            
+            return pedido
+
+    def delete(self, pedido_id: int):
+        with self.uow as uow:
+            pedido = uow.pedidos.get_by_id(pedido_id)
+            if not pedido:
+                raise HTTPException(404, "Pedido no encontrado")
+            uow.pedidos.delete(pedido)

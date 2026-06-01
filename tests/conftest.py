@@ -42,12 +42,25 @@ def session_fixture():
     SQLModel.metadata.drop_all(engine)
 
 
+from app.core.deps import get_current_user, get_current_active_user
+from app.modules.usuario.schema import UsuarioRead
+
 @pytest.fixture(name="client")
 def client_fixture(session: Session):
     def override_get_session():
         yield session
 
+    mock_admin = UsuarioRead(
+        id=999,
+        email="test_admin@example.com",
+        name="Test",
+        lastname="Admin",
+        roles=["ADMIN"]
+    )
+
     app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    app.dependency_overrides[get_current_active_user] = lambda: mock_admin
     with TestClient(app) as client:
         yield client
     app.dependency_overrides.clear()

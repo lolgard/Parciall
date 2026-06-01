@@ -4,6 +4,7 @@ from app.modules.direccionEntrega.unit_of_work import DireccionEntregaUnitOfWork
 from app.modules.direccionEntrega.model import DireccionEntrega
 from app.modules.direccionEntrega.schema import DireccionEntregaCreate, DireccionEntregaUpdate
 from app.modules.usuario.model import Usuario
+from app.modules.usuario.schema import UsuarioRead
 
 
 class DireccionEntregaService:
@@ -14,44 +15,53 @@ class DireccionEntregaService:
         with self.uow as uow:
             # validar usuario si viene
             if data.usuario_id:
-                usuario = uow._session.get(Usuario, data.usuario_id)
+                usuario = uow.usuarios.get_by_id(data.usuario_id)
                 if not usuario:
                     raise HTTPException(404, "Usuario no encontrado")
 
             direccion = DireccionEntrega(**data.dict())
             return uow.direccion_entregas.add(direccion)
 
-    def get_all(self):
+    def get_all(self, current_user: UsuarioRead):
         with self.uow as uow:
             Direcciones = uow.direccion_entregas.get_all()
             if not Direcciones:
-                raise HTTPException(404, "No se encontraron direcciones")
+                return []
+            
+            # Si el usuario es cliente, filtrar para mostrar solo las suyas
+            if "ADMIN" not in current_user.roles:
+                return [d for d in Direcciones if d.usuario_id == current_user.id]
             return Direcciones
 
-    def get_by_id(self, direccion_id: int):
+    def get_by_id(self, direccion_id: int, current_user: UsuarioRead):
         with self.uow as uow:
             direccion = uow.direccion_entregas.get_by_id(direccion_id)
             if not direccion:
                 raise HTTPException(404, "Dirección no encontrada")
+            if "ADMIN" not in current_user.roles and direccion.usuario_id != current_user.id:
+                raise HTTPException(403, "Acceso denegado a esta dirección")
             return direccion
 
-    def update(self, direccion_id: int, data: DireccionEntregaUpdate):
+    def update(self, direccion_id: int, data: DireccionEntregaUpdate, current_user: UsuarioRead):
         with self.uow as uow:
             direccion = uow.direccion_entregas.get_by_id(direccion_id)
             if not direccion:
                 raise HTTPException(404, "Dirección no encontrada")
+            if "ADMIN" not in current_user.roles and direccion.usuario_id != current_user.id:
+                raise HTTPException(403, "No tienes permisos para modificar esta dirección")
 
             # aplicar campos opcionales
             for field, value in data.dict(exclude_unset=True).items():
                 setattr(direccion, field, value)
 
             uow.direccion_entregas.update(direccion)
-            uow._session.refresh(direccion)
             return direccion
 
-    def delete(self, direccion_id: int):
+    def delete(self, direccion_id: int, current_user: UsuarioRead):
         with self.uow as uow:
             direccion = uow.direccion_entregas.get_by_id(direccion_id)
             if not direccion:
                 raise HTTPException(404, "Dirección no encontrada")
+            if "ADMIN" not in current_user.roles and direccion.usuario_id != current_user.id:
+                raise HTTPException(403, "No tienes permisos para eliminar esta dirección")
             uow.direccion_entregas.delete(direccion)

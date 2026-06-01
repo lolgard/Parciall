@@ -43,22 +43,22 @@ ROLES_INICIALES = [
     {
         "code":       "ADMIN",
         "name":       "Administrador",
-        "descripcion": "Acceso total al sistema.",
+        "descripcion": "Acceso total sin restricciones.",
     },
     {
         "code":       "CLIENT",
         "name":       "Cliente",
-        "descripcion": "Puede realizar y consultar sus pedidos.",
+        "descripcion": "Puede realizar y consultar sus propios pedidos.",
     },
     {
         "code":       "STOCK",
         "name":       "Encargado de Stock",
-        "descripcion": "Gestiona el stock de productos.",
+        "descripcion": "Actualiza stock y disponible de productos.",
     },
     {
         "code":       "PEDIDOS",
         "name":       "Encargado de Pedidos",
-        "descripcion": "Gestiona los pedidos.",
+        "descripcion": "Avanza estados de pedido: CONFIRMADO → ENTREGADO. Puede cancelar.",
     },
 ]
 
@@ -82,10 +82,10 @@ USUARIOS_INICIALES = [
         "rol_code":      "CLIENT",
     },
     {
-        "name":          "cocinero",
-        "lastname":      "Cocinero de Prueba",
-        "email":         "cocinero@example.com",
-        "password_hash": "Cocinero1234!",
+        "name":          "empleado",
+        "lastname":      "Empleado de Prueba",
+        "email":         "empleado@example.com",
+        "password_hash": "Empleado1234!",
         "phone_number":  222222222,
         "rol_code":      "PEDIDOS",
     },
@@ -278,8 +278,8 @@ def run() -> None:
 
     print("\n=== Credenciales de prueba ===")
     print("  admin    / Admin1234!    -> ADMIN")
-    print("  cliente  / Cliente1234!  -> CLIENTE")
-    print("  cocinero / Cocinero1234! -> COCINERO")
+    print("  cliente  / Cliente1234!  -> CLIENT")
+    print("  empleado / Empleado1234! -> PEDIDOS")
     print()
 
 

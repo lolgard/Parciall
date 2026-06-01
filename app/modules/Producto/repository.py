@@ -76,6 +76,7 @@ class ProductoRepository(BaseRepository):
     def update(self, producto: Producto) -> Producto:
         self.session.add(producto)
         self.session.flush()
+        self.session.refresh(producto)
         return producto
 
     def add(self, producto: Producto) -> Producto:

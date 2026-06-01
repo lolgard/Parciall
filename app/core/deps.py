@@ -37,9 +37,11 @@ from fastapi import Depends, HTTPException, status  # Inyección y manejo de err
 from fastapi.security import OAuth2PasswordBearer  # Manejo estándar de OAuth2 con Bearer
 
 from app.core.security import decode_access_token  # Función para decodificar JWT
-from app.core.unit_of_work import BaseUnitOfWork, get_uow       # Patrón Unit of Work para DB
 from app.modules.usuario.model  import Usuario     # Modelo de dominio Usuario
-from app.modules.usuario.model import UsuarioRead     # Modelo de dominio Usuario
+from app.modules.usuario.schema import UsuarioRead     # Esquema de lectura de Usuario
+from sqlmodel import Session
+from app.core.database import get_session
+from app.modules.usuario.unit_of_work import UsuarioUnitOfWork
 
 from fastapi import Request
 
@@ -77,7 +79,7 @@ oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="/api/v1/auth/token")
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],  # Token extraído automáticamente
-    uow: Annotated[BaseUnitOfWork, Depends(get_uow)],   # Inyección del Unit of Work
+    session: Annotated[Session, Depends(get_session)],   # Inyección de Session
 ):
     """
     Decodifica el JWT y retorna el Usuario correspondiente.
@@ -105,7 +107,7 @@ async def get_current_user(
     if username is None:
         raise credentials_exception
 
-    # Abre contexto de Unit of Work (manejo de sesión/transacción)
+    uow = UsuarioUnitOfWork(session)
     with uow:
         # Busca el usuario en base de datos
         user = uow.usuarios.get_by_username(username)
@@ -114,27 +116,24 @@ async def get_current_user(
         if user is None:
             raise credentials_exception
 
-        return UsuarioRead.model_validate(user)  # Usuario autenticado válido
+        user_read = UsuarioRead.model_validate(user)
+        user_read.roles = [r.rol_codigo for r in user.usuarioRol] if user.usuarioRol else []
+        return user_read
 
 
 async def get_current_active_user(
-    current_user: Annotated[Usuario, Depends(get_current_user)],
-) :
+    current_user: Annotated[UsuarioRead, Depends(get_current_user)],
+) -> UsuarioRead:
     """
     Verifica que el usuario autenticado esté activo.
-
-    Regla de negocio:
-    - Un usuario con disabled=True no puede operar
     """
-
-    if current_user.disabled:
-        # Error semántico: el usuario existe pero no puede operar
+    if current_user.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cuenta de usuario desactivada",
+            detail="Cuenta de usuario desactivada o eliminada",
         )
 
-    return UsuarioRead.model_validate(current_user) # Usuario válido y activo
+    return current_user
 
 
 def require_role(allowed_roles: list[str]):
@@ -145,25 +144,21 @@ def require_role(allowed_roles: list[str]):
     tiene uno de los roles permitidos.
 
     Parámetros:
-        allowed_roles → lista de roles válidos (ej: ["admin", "manager"])
-
-    Uso típico:
-        @router.get("/admin", dependencies=[Depends(require_role(["admin"]))])
+        allowed_roles → lista de roles válidos (ej: ["ADMIN", "CLIENT"])
     """
 
     async def role_checker(
-        current_user: Annotated[Usuario, Depends(get_current_active_user)],
-    ) -> Usuario:
+        current_user: Annotated[UsuarioRead, Depends(get_current_active_user)],
+    ) -> UsuarioRead:
         """
         Valida que el rol del usuario esté dentro de los permitidos.
         """
-
-        # Si el rol del usuario no está permitido → 403 (prohibido)
-        if current_user.role not in allowed_roles:
+        # Si ninguno de los roles del usuario está permitido → 403 (prohibido)
+        if not any(r in allowed_roles for r in current_user.roles):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(
-                    f"Permisos insuficientes. Tu rol es '{current_user.role}'. "
+                    f"Permisos insuficientes. Tus roles son {current_user.roles}. "
                     f"Se requiere uno de: {allowed_roles}"
                 ),
             )

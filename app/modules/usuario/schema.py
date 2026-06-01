@@ -1,5 +1,6 @@
 
 from typing import Optional
+from datetime import datetime
 
 from sqlmodel import SQLModel
 from app.modules.rol.schema import RolRead
@@ -15,7 +16,7 @@ class UsuarioCreate(UsuarioBase):
 
 class UsuarioRead(UsuarioBase):
     id: int
-    deleted_at: Optional[str] = None
+    deleted_at: Optional[datetime] = None
     roles: list[str] = []
 
 class UsuarioDetallesRead(UsuarioRead):

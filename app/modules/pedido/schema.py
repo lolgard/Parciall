@@ -18,9 +18,18 @@ class PedidoBase(SQLModel):
     extra_data: Optional[str] = None
 
 
-class PedidoCreate(PedidoBase):
-    estado_codigo: Optional[str] = None
-    forma_pago_codigo: Optional[str] = None
+class PedidoItemCreate(SQLModel):
+    producto_id: int
+    cantidad: int = Field(ge=1)
+    nombre_snapshot: str
+    precio_snapshot: float = Field(gt=0)
+    subtotal_snapshot: float
+
+class PedidoCreate(SQLModel):
+    direccion_entrega_id: int
+    forma_pago_codigo: str
+    notas: Optional[str] = None
+    items: List[PedidoItemCreate]
 
 
 class PedidoRead(PedidoBase):

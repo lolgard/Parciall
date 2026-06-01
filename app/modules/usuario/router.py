@@ -5,7 +5,13 @@ from app.modules.usuario.service import UsuarioService
 from app.modules.usuario.schema import UsuarioCreate, UsuarioRead, UsuarioDetallesRead, UsuarioUpdate
 from app.modules.usuario.unit_of_work import UsuarioUnitOfWork
 
-router = APIRouter(prefix="/usuarios", tags=["usuarios"])
+from app.core.deps import require_role
+
+router = APIRouter(
+    prefix="/usuarios",
+    tags=["usuarios"],
+    dependencies=[Depends(require_role(["ADMIN"]))]
+)
 
 
 def get_service(session=Depends(get_session)):

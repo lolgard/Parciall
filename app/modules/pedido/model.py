@@ -18,8 +18,8 @@ class Pedido(SQLModel, table=True):
     usuario_id: Optional[int] = Field(default=None, foreign_key="usuario.id")
     direccion_entrega_id: Optional[int] = Field(default=None, foreign_key="direccionentrega.id")
 
-    estado_codigo: str = Field(default="none", foreign_key="estadopedido.codigo")
-    forma_pago_codigo: str = Field(default="none", foreign_key="formapago.codigo")
+    estado_codigo: str = Field(default="PENDIENTE", foreign_key="estadopedido.codigo")
+    forma_pago_codigo: str = Field(default="EFECTIVO", foreign_key="formapago.codigo")
 
     subtotal: float = Field(description="Subtotal al momento del pedido")
     descuento: float = Field(default=0.0)

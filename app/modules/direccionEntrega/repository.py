@@ -41,6 +41,7 @@ class DireccionEntregaRepository(BaseRepository):
     def update(self,direccionEntrega:DireccionEntrega) ->DireccionEntrega:
         self.session.add(direccionEntrega)
         self.session.flush()
+        self.session.refresh(direccionEntrega)
         return direccionEntrega
     
     def delete(self,direccionEntrega:DireccionEntrega)-> None:

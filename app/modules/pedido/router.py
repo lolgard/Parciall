@@ -2,49 +2,58 @@ from fastapi import APIRouter, Depends, Request
 
 from app.core.database import get_session
 from app.modules.pedido.service import PedidoService
-from app.modules.pedido.schema import PedidoCreate, PedidoRead, GuestOrderCreate, GuestOrderResponse, PedidoConDetallesRead, PedidoUpdate
+from app.modules.pedido.schema import PedidoCreate, PedidoRead, PedidoConDetallesRead, PedidoUpdate
+from app.core.deps import get_current_active_user, require_role
+from app.modules.usuario.schema import UsuarioRead
+from app.modules.pedido.unit_of_work import PedidoUnitOfWork
 
 router = APIRouter(prefix="/pedidos", tags=["pedidos"])
 
-
-from app.modules.pedido.unit_of_work import PedidoUnitOfWork
 
 def get_service(session=Depends(get_session)):
     uow = PedidoUnitOfWork(session)
     return PedidoService(uow)
 
 
-@router.post("/guest", response_model=GuestOrderResponse)
-def create_guest_order(
-    data: GuestOrderCreate,
-    request: Request,
-    service: PedidoService = Depends(get_service),
-):
-    client_ip = request.client.host if request.client else "unknown"
-    user_agent = request.headers.get("user-agent", "unknown")
-    return service.create_guest_order(data, client_ip, user_agent)
-
-
 @router.post("/", response_model=PedidoRead)
-def create_pedido(data: PedidoCreate, service: PedidoService = Depends(get_service)):
-    return service.create(data)
+def create_pedido(
+    data: PedidoCreate,
+    current_user: UsuarioRead = Depends(get_current_active_user),
+    service: PedidoService = Depends(get_service)
+):
+    return service.create(data, current_user.id)
 
 
 @router.get("/", response_model=list[PedidoConDetallesRead])
-def get_all(service: PedidoService = Depends(get_service)):
-    return service.get_all()
+def get_all(
+    current_user: UsuarioRead = Depends(get_current_active_user),
+    service: PedidoService = Depends(get_service)
+):
+    return service.get_all(current_user)
 
 
 @router.get("/{id}", response_model=PedidoConDetallesRead)
-def get_by_id(id: int, service: PedidoService = Depends(get_service)):
-    return service.get_by_id(id)
+def get_by_id(
+    id: int,
+    current_user: UsuarioRead = Depends(get_current_active_user),
+    service: PedidoService = Depends(get_service)
+):
+    return service.get_by_id(id, current_user)
 
 
 @router.put("/{id}", response_model=PedidoRead)
-def update_pedido(id: int, data: PedidoUpdate, service: PedidoService = Depends(get_service)):
-    return service.update(id, data)
+def update_pedido(
+    id: int,
+    data: PedidoUpdate,
+    current_user: UsuarioRead = Depends(get_current_active_user),
+    service: PedidoService = Depends(get_service)
+):
+    return service.update(id, data, current_user)
 
 
-@router.delete("/{id}")
-def delete_pedido(id: int, service: PedidoService = Depends(get_service)):
+@router.delete("/{id}", dependencies=[Depends(require_role(["ADMIN"]))])
+def delete_pedido(
+    id: int,
+    service: PedidoService = Depends(get_service)
+):
     return service.delete(id)

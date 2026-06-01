@@ -4,6 +4,7 @@ from app.modules.Categoria import service
 from app.modules.Producto.unit_of_work import ProductoUnitOfWork
 from app.modules.Producto.service import ProductoService
 from app.modules.Producto.schema import PaginatedResponse, ProductoCreate, ProductoRead
+from app.core.deps import require_role
 router = APIRouter(prefix="/productos", tags= ["productos"])
 
 def get_service(session=Depends(get_session)):
@@ -11,7 +12,7 @@ def get_service(session=Depends(get_session)):
     return ProductoService(uow)
 
 #create
-@router.post("/", response_model=ProductoRead)
+@router.post("/", response_model=ProductoRead, dependencies=[Depends(require_role(["ADMIN", "STOCK"]))])
 def create_Producto(data:ProductoCreate, service:ProductoService = Depends(get_service)):
     return service.producto_service_create(data)
     
@@ -30,10 +31,10 @@ def get_all(
 def get_by_id(id:int,service:ProductoService =Depends(get_service)):
     return service.get_by_id(id)
 #update
-@router.put("/{id}", response_model=ProductoRead)
+@router.put("/{id}", response_model=ProductoRead, dependencies=[Depends(require_role(["ADMIN", "STOCK"]))])
 def update_producto(id:int, data:ProductoCreate, service:ProductoService = Depends(get_service)):
     return service.update(id, data)
 #delete
-@router.delete("/{id}")
-def get_by_id(id:int,service:ProductoService =Depends(get_service)):
+@router.delete("/{id}", dependencies=[Depends(require_role(["ADMIN", "STOCK"]))])
+def delete_producto(id:int, service:ProductoService =Depends(get_service)):
     return service.delete(id)

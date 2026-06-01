@@ -13,4 +13,4 @@ class UsuarioUnitOfWork(BaseUnitOfWork):
         super().__init__(session)
         self.usuarios = UsuarioRepository(session)
         self.usuario_rol = UsuarioRolRepository(session)
-        self.refreshTokens = RefreshTokenRepository(session)
+        self.refresh_tokens = RefreshTokenRepository(session)
