@@ -212,7 +212,7 @@ class RefreshTokenService:
                 revoked_at=None
             )
 
-            uow.refresh_tokens.add(token)
+            uow.refresh_tokens.create(token)
             return token
     
     def validate_token(self, token_hash: str):
