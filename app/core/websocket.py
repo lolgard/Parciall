@@ -80,7 +80,7 @@
 #
 #   Backend → Cliente:
 #     {"event": "PEDIDO_CONFIRMADO",     "data": {...pedido...}}
-#     {"event": "PEDIDO_EN_PREPARACION", "data": {...pedido...}}
+#     {"event": "PEDIDO_EN_PREP", "data": {...pedido...}}
 #     {"event": "PEDIDO_EN_CAMINO",      "data": {...pedido...}}
 #     {"event": "PEDIDO_CANCELADO",      "data": {...pedido...}}
 #     {"event": "PEDIDO_ENTREGADO",      "data": {...pedido...}}
@@ -282,7 +282,7 @@ class ConnectionManager:
         Envía un evento a todos los sockets suscritos a un pedido específico.
 
         Ejemplo:
-          broadcast_to_order(5, "PEDIDO_EN_PREPARACION", pedido_data)
+          broadcast_to_order(5, "PEDIDO_EN_PREP", pedido_data)
           → el cliente que hizo el pedido #5 recibe la actualización
 
         Args:

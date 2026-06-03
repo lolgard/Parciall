@@ -94,42 +94,12 @@ USUARIOS_INICIALES = [
 # ── Estados de pedido ────────────────────────────────────────────────────────
 
 ESTADOS_PEDIDO_INICIALES = [
-    {
-        "codigo": "PENDIENTE",
-        "descripcion": "Pedido pendiente de confirmación",
-        "orden": 1,
-        "es_terminal": False,
-    },
-    {
-        "codigo": "CONFIRMADO",
-        "descripcion": "Pedido confirmado",
-        "orden": 2,
-        "es_terminal": False,
-    },
-    {
-        "codigo": "EN_PREPARACION",
-        "descripcion": "Pedido en preparación",
-        "orden": 3,
-        "es_terminal": False,
-    },
-    {
-        "codigo": "LISTO",
-        "descripcion": "Pedido listo para entregar",
-        "orden": 4,
-        "es_terminal": False,
-    },
-    {
-        "codigo": "ENTREGADO",
-        "descripcion": "Pedido entregado",
-        "orden": 5,
-        "es_terminal": True,
-    },
-    {
-        "codigo": "CANCELADO",
-        "descripcion": "Pedido cancelado",
-        "orden": 6,
-        "es_terminal": True,
-    },
+    {"codigo": "PENDIENTE", "descripcion": "Pedido recibido, a la espera de confirmación", "orden": 1, "es_terminal": False},
+    {"codigo": "CONFIRMADO", "descripcion": "Pedido confirmado, a punto de prepararse", "orden": 2, "es_terminal": False},
+    {"codigo": "EN_PREP", "descripcion": "El pedido se está preparando en cocina", "orden": 3, "es_terminal": False},
+    {"codigo": "LISTO", "descripcion": "El pedido está listo para ser entregado", "orden": 4, "es_terminal": False},
+    {"codigo": "ENTREGADO", "descripcion": "El pedido ha sido entregado al cliente", "orden": 5, "es_terminal": True},
+    {"codigo": "CANCELADO", "descripcion": "El pedido ha sido cancelado", "orden": 6, "es_terminal": True},
 ]
 
 

@@ -11,11 +11,11 @@ from app.modules.direccionEntrega.model import DireccionEntrega
 from app.modules.formaPago.model import FormaPago
 from app.modules.Producto.model import Producto
 
-ESTADOS_VALIDOS = ["PENDIENTE", "CONFIRMADO", "EN_PREPARACION", "LISTO", "ENTREGADO", "CANCELADO"]
+ESTADOS_VALIDOS = ["PENDIENTE", "CONFIRMADO", "EN_PREP", "LISTO", "ENTREGADO", "CANCELADO"]
 TRANSICIONES = {
     "PENDIENTE": ["CONFIRMADO", "CANCELADO"],
-    "CONFIRMADO": ["EN_PREPARACION", "CANCELADO"],
-    "EN_PREPARACION": ["LISTO"],
+    "CONFIRMADO": ["EN_PREP", "CANCELADO"],
+    "EN_PREP": ["LISTO"],
     "LISTO": ["ENTREGADO"],
     "ENTREGADO": [],
     "CANCELADO": []
@@ -79,8 +79,8 @@ class PedidoService:
                 detalle = DetallePedido(
                     pedido_id=pedido.id,
                     producto_id=item.producto_id,
-                    cantidad=item.cantidad,
                     nombre_snapshot=item.nombre_snapshot,
+                    cantidad=item.cantidad,
                     precio_snapshot=item.precio_snapshot,
                     subtotal_snapshot=item.subtotal_snapshot,
                     personalizacion=0,
@@ -201,7 +201,7 @@ class PedidoService:
         EVENTOS_WS = {
             "PENDIENTE":  "NUEVO_PEDIDO",
             "CONFIRMADO": "PEDIDO_CONFIRMADO",
-            "EN_PREPARACION": "PEDIDO_EN_PREPARACION",
+            "EN_PREP": "PEDIDO_EN_PREPARACION",
             "LISTO":      "PEDIDO_LISTO",
             "CANCELADO":  "PEDIDO_CANCELADO",
             "ENTREGADO":  "PEDIDO_ENTREGADO",
@@ -210,7 +210,7 @@ class PedidoService:
         ROLES_POR_TRANSICION = {
             "PENDIENTE":  ["pedidos", "admin"],
             "CONFIRMADO": ["pedidos", "cocina", "admin"],
-            "EN_PREPARACION": ["cocina", "pedidos", "admin"],
+            "EN_PREP": ["cocina", "pedidos", "admin"],
             "LISTO":      ["pedidos", "admin"],
             "ENTREGADO":  ["pedidos", "admin"],
             "CANCELADO":  ["pedidos", "cocina", "admin"],
