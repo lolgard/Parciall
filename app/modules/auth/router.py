@@ -8,9 +8,10 @@ from app.core.database import get_session
 from app.core.security import verify_password, create_access_token, decode_access_token, hash_password
 from app.modules.usuario.model import Usuario
 from app.modules.usuario.schema import UsuarioDetallesRead
-from app.modules.usuario.service import UsuarioService
 from app.modules.usuario.unit_of_work import UsuarioUnitOfWork
 from app.modules.usuarioRol.model import UsuarioRol
+from app.modules.usuario.service import RefreshTokenService
+import secrets
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -37,13 +38,39 @@ def login(data: LoginRequest, response: Response, session = Depends(get_session)
     
     roles = [r.rol_codigo for r in usuario.usuarioRol] if usuario.usuarioRol else []
 
-    # Generar token
-    token = create_access_token(data={"sub": str(usuario.id)})
+    # Generar Access Token
+    token = create_access_token(
+        data={"sub": str(usuario.id)},
+        expires_delta=timedelta(hours=24) # Increased access token lifetime
+    )
     
-    # Setear cookie HttpOnly
+    # Generar Refresh Token
+    uow = UsuarioUnitOfWork(session)
+    refresh_service = RefreshTokenService(uow)
+    
+    # 7 días para refresh
+    refresh_token_string = secrets.token_urlsafe(32)
+    refresh_token_expire = datetime.utcnow() + timedelta(days=7)
+    
+    refresh_service.create_token(
+        user_id=usuario.id,
+        token_hash=refresh_token_string,  # En un caso real se debe hashear esto
+        expire_at=refresh_token_expire
+    )
+
+    # Setear cookie HttpOnly para access_token (24hs)
     response.set_cookie(
         key="access_token",
         value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=3600 * 24 # 24 horas
+    )
+    
+    # Setear cookie HttpOnly para refresh_token (7 dias)
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token_string,
         httponly=True,
         samesite="lax",
         max_age=3600 * 24 * 7 # 7 días
@@ -54,6 +81,57 @@ def login(data: LoginRequest, response: Response, session = Depends(get_session)
     u_dict["roles"] = roles
     return u_dict
 
+@router.post("/refresh")
+def refresh_token(request: Request, response: Response, session = Depends(get_session)):
+    refresh_token_string = request.cookies.get("refresh_token")
+    if not refresh_token_string:
+        raise HTTPException(status_code=401, detail="Refresh token no proporcionado")
+        
+    uow = UsuarioUnitOfWork(session)
+    refresh_service = RefreshTokenService(uow)
+    
+    try:
+        # Valida y rota
+        old_token = refresh_service.refresh(refresh_token_string)
+    except HTTPException as e:
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+        raise e
+        
+    usuario = uow.usuarios.get_by_id(old_token.user_id)
+    if not usuario:
+        raise HTTPException(status_code=401, detail="Usuario no encontrado")
+        
+    # Generar nuevos tokens
+    new_access_token = create_access_token(
+        data={"sub": str(usuario.id)},
+        expires_delta=timedelta(hours=24)
+    )
+    
+    new_refresh_string = secrets.token_urlsafe(32)
+    refresh_service.create_token(
+        user_id=usuario.id,
+        token_hash=new_refresh_string,
+        expire_at=datetime.utcnow() + timedelta(days=7)
+    )
+    
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,
+        samesite="lax",
+        max_age=3600 * 24
+    )
+    
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_string,
+        httponly=True,
+        samesite="lax",
+        max_age=3600 * 24 * 7
+    )
+    
+    return {"message": "Tokens actualizados"}
 
 @router.post("/register")
 def register(data: RegisterRequest, session = Depends(get_session)):
@@ -96,6 +174,7 @@ def register(data: RegisterRequest, session = Depends(get_session)):
 @router.post("/logout")
 def logout(response: Response):
     response.delete_cookie("access_token")
+    response.delete_cookie("refresh_token")
     return {"message": "Sesión cerrada"}
 
 @router.get("/me")
