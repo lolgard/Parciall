@@ -15,8 +15,8 @@ ESTADOS_VALIDOS = ["PENDIENTE", "CONFIRMADO", "EN_PREP", "LISTO", "ENTREGADO", "
 TRANSICIONES = {
     "PENDIENTE": ["CONFIRMADO", "CANCELADO"],
     "CONFIRMADO": ["EN_PREP", "CANCELADO"],
-    "EN_PREP": ["LISTO"],
-    "LISTO": ["ENTREGADO"],
+    "EN_PREP": ["LISTO", "CANCELADO"],
+    "LISTO": ["ENTREGADO", "CANCELADO"],
     "ENTREGADO": [],
     "CANCELADO": []
 }
@@ -83,13 +83,14 @@ class PedidoService:
                     cantidad=item.cantidad,
                     precio_snapshot=item.precio_snapshot,
                     subtotal_snapshot=item.subtotal_snapshot,
-                    personalizacion=0,
+                    personalizacion=item.personalizacion if item.personalizacion is not None else [],
                 )
                 uow.detalles.add(detalle)
 
             # 6. Registrar en historial a través del repositorio
             h = HistorialEstadoPedido(
                 pedido_id=pedido.id,
+                estado_desde=None,
                 estado_codigo="PENDIENTE",
                 observaciones="Creación del pedido"
             )
@@ -179,7 +180,12 @@ class PedidoService:
             
             # Registrar cambio en historial a través del repositorio
             obs = f"Cambio de estado por {current_user.name} ({', '.join(current_user.roles)})"
-            h = HistorialEstadoPedido(pedido_id=pedido.id, estado_codigo=nuevo_estado, observaciones=obs)
+            h = HistorialEstadoPedido(
+                pedido_id=pedido.id, 
+                estado_desde=estado_actual,
+                estado_codigo=nuevo_estado, 
+                observaciones=obs
+            )
             uow.historial.add(h)
             
             result = pedido

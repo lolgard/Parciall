@@ -10,6 +10,7 @@ class ProductoBase(SQLModel):
     stock_cantidad: int
     disponible: bool = Field(default=True)
     imagen_url: Optional[str] = None
+    descripcion: Optional[str] = None
 
 class ProductoCategoriaRead(SQLModel):
     categoria_id: int
@@ -42,6 +43,7 @@ class ProductoUpdate(SQLModel):
     ingredientes: Optional[list[int]] = None
     unidad_medida_id: Optional[int] = None
     imagen_url: Optional[str] = None
+    descripcion: Optional[str] = None
 
 class ProductoCategoriaCreate(SQLModel):
     categoria_id: int

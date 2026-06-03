@@ -18,6 +18,9 @@ class Categoria(SQLModel, table=True):
 
     padre_id: int | None = Field(default=None, foreign_key="categoria.id")
 
+    @property
+    def parent_id(self) -> int | None:
+        return self.padre_id
 
     productos: list["ProductoCategoria"] = Relationship(back_populates="categoria")
 

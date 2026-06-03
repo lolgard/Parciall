@@ -7,10 +7,10 @@ from datetime import datetime, timedelta
 from app.core.database import get_session
 from app.core.security import verify_password, create_access_token, decode_access_token, hash_password
 from app.modules.usuario.model import Usuario
-from app.modules.usuario.schema import UsuarioDetallesRead
+from app.modules.usuario.schema import UsuarioDetallesRead, UsuarioUpdate
 from app.modules.usuario.unit_of_work import UsuarioUnitOfWork
 from app.modules.usuarioRol.model import UsuarioRol
-from app.modules.usuario.service import RefreshTokenService
+from app.modules.usuario.service import RefreshTokenService, UsuarioService
 import secrets
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -199,3 +199,45 @@ def get_me(request: Request, session = Depends(get_session)):
     u_dict = usuario.dict()
     u_dict["roles"] = roles
     return u_dict
+
+class UpdateProfileRequest(BaseModel):
+    name: Optional[str] = None
+    lastname: Optional[str] = None
+    email: Optional[str] = None
+    phone_number: Optional[int] = None
+    password: Optional[str] = None
+
+@router.patch("/me")
+def update_me(data: UpdateProfileRequest, request: Request, session = Depends(get_session)):
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+    
+    user_id_str = payload.get("sub")
+    if not user_id_str:
+        raise HTTPException(status_code=401, detail="Token sin ID")
+        
+    uow = UsuarioUnitOfWork(session)
+    usuario_service = UsuarioService(uow)
+    
+    # Mapear a UsuarioUpdate
+    update_data = UsuarioUpdate(
+        name=data.name,
+        lastname=data.lastname,
+        email=data.email,
+        phone_number=data.phone_number,
+        password_hash=data.password  # El servicio lo hashea si está presente
+    )
+    
+    try:
+        updated_user = usuario_service.update(int(user_id_str), update_data)
+        return updated_user
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=400, detail=str(e))
+

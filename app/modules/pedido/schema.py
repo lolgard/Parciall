@@ -24,6 +24,7 @@ class PedidoItemCreate(SQLModel):
     nombre_snapshot: str
     precio_snapshot: float = Field(gt=0)
     subtotal_snapshot: float
+    personalizacion: Optional[List[int]] = []
 
 class PedidoCreate(SQLModel):
     direccion_entrega_id: int
@@ -73,6 +74,7 @@ class GuestOrderItemCreate(SQLModel):
     nombre_snapshot: str
     precio_snapshot: float = Field(gt=0)
     subtotal_snapshot: float
+    personalizacion: Optional[List[int]] = []
 
 
 class GuestOrderCreate(SQLModel):

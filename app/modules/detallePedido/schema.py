@@ -11,7 +11,7 @@ class DetallePedidoBase(SQLModel):
     nombre_snapshot: str
     precio_snapshot: float
     subtotal_snapshot: float
-    personalizacion: Optional[int] = None
+    personalizacion: Optional[list[int]] = []
 
 
 class DetallePedidoCreate(DetallePedidoBase):
@@ -24,4 +24,4 @@ class DetallePedidoRead(DetallePedidoBase):
 
 class DetallePedidoUpdate(SQLModel):
     cantidad: Optional[int] = None
-    personalizacion: Optional[int] = None
+    personalizacion: Optional[list[int]] = None

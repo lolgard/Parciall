@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel, Column, JSON
 
 
 if TYPE_CHECKING:
@@ -20,8 +20,7 @@ class DetallePedido(SQLModel, table=True):
     precio_snapshot: float = Field(not None, gt=0, description="Precio del producto al momento de realizar el pedido")
     subtotal_snapshot: float = Field(not None, description="Subtotal del producto (precio_snapshot * cantidad) al momento de realizar el pedido")
     
-    personalizacion: int
-
+    personalizacion: list[int] = Field(default=[], sa_column=Column(JSON))
     #---------------------------audit fields:----------------------------
     created_at: datetime = Field(default_factory=datetime.utcnow)
     deleted_at: datetime | None = None

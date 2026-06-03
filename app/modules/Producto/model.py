@@ -17,6 +17,7 @@ class Producto(SQLModel, table=True):
     stock_cantidad:int #=Field(0,stock_cantidad>=0)
     disponible: bool =Field(default =True)
     imagen_url: str | None = None
+    descripcion: str | None = Field(default=None)
     
  
 

@@ -9,8 +9,8 @@ class DireccionEntrega(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     usuario_id: Optional[int] = Field(foreign_key="usuario.id", ondelete="CASCADE")
     alias : Optional[str] = Field(default=None)
-    linea1 : int
-    linea2 : Optional[int] = Field(default=None)
+    linea1 : str
+    linea2 : Optional[str] = Field(default=None)
     ciudad : str
     provincia : str
     codigo_postal : str

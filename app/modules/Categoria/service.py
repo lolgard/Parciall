@@ -23,7 +23,12 @@ class CategoriaService:
                 if not padre:
                     raise HTTPException(404, "La categoría padre no existe")
                 
-            categoria = Categoria(**data.dict())
+            categoria = Categoria(
+                nombre=data.nombre,
+                descripcion=data.descripcion,
+                imagen_url=data.imagen_url,
+                padre_id=data.parent_id
+            )
             return uow.categorias.add(categoria)
         
     def get_all(self) ->list[Categoria]:
@@ -56,7 +61,7 @@ class CategoriaService:
             categoria.nombre = data.nombre
             categoria.descripcion = data.descripcion
             categoria.imagen_url = data.imagen_url
-            categoria.parent_id = data.parent_id
+            categoria.padre_id = data.parent_id
             categoria.updated_at = datetime.utcnow()
             return categoria
 

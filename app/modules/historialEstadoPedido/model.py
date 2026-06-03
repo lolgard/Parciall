@@ -9,9 +9,11 @@ if TYPE_CHECKING:
 class HistorialEstadoPedido(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     pedido_id: int = Field(foreign_key="pedido.id")
+    estado_desde: Optional[str] = Field(default=None, foreign_key="estadopedido.codigo")
     estado_codigo: str = Field(foreign_key="estadopedido.codigo")
     observaciones: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     pedido: Optional["Pedido"] = Relationship(back_populates="historial_estados")
-    estado: Optional["EstadoPedido"] = Relationship()
+    estado: Optional["EstadoPedido"] = Relationship(sa_relationship_kwargs={"foreign_keys": "[HistorialEstadoPedido.estado_codigo]"})
+    estado_desde_rel: Optional["EstadoPedido"] = Relationship(sa_relationship_kwargs={"foreign_keys": "[HistorialEstadoPedido.estado_desde]"})

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 from datetime import datetime
 from sqlmodel import Field, Relationship, SQLModel
-
+from sqlalchemy import BigInteger, Column
 
 if TYPE_CHECKING:
     from app.modules.rol.model import Rol
@@ -19,7 +19,7 @@ class Usuario(SQLModel, table=True):
     name: str
     lastname: str
     email:str
-    phone_number:Optional[int] = Field(default=None)
+    phone_number:Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     password_hash: str
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
