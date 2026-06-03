@@ -37,6 +37,13 @@ env\Scripts\activate
 # Linux / Mac
 source env/bin/activate
 
+ejemplo: 
+.\env\Scripts\python.exe -m uvicorn app.main:app --reload
+
+#en bash
+./env/Scripts/python.exe -m uvicorn app.main:app --reload
+
+
 # 3. Instalar dependencias
 pip install -r requirements.txt
 

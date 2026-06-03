@@ -28,10 +28,12 @@ def create_direccion(
 
 @router.get("/", response_model=list[DireccionEntregaRead])
 def get_all(
+    usuario_id: int | None = None,
+    all_addresses: bool = False,
     current_user: UsuarioRead = Depends(get_current_active_user),
     service: DireccionEntregaService = Depends(get_service)
 ):
-    return service.get_all(current_user)
+    return service.get_all(current_user, usuario_id, all_addresses)
 
 
 @router.get("/{id}", response_model=DireccionEntregaRead)

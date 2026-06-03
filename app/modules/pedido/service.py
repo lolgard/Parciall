@@ -26,14 +26,14 @@ class PedidoService:
     def __init__(self, uow: PedidoUnitOfWork):
         self.uow = uow
 
-    def create(self, data: PedidoCreate, current_user_id: int):
+    async def create(self, data: PedidoCreate, current_user_id: int):
         with self.uow as uow:
             # 1. Validar dirección de entrega
             direccion = uow.direccion_entregas.get_by_id(data.direccion_entrega_id)
             if not direccion:
                 raise HTTPException(404, "Dirección de entrega no encontrada")
-            if direccion.usuario_id != current_user_id:
-                raise HTTPException(400, "La dirección de entrega no pertenece al usuario autenticado")
+            if str(direccion.usuario_id) != str(current_user_id):
+                raise HTTPException(400, f"La dirección de entrega no pertenece al usuario autenticado (Dir.User: {direccion.usuario_id}, Auth.User: {current_user_id})")
 
             # 2. Validar forma de pago
             forma_pago = uow.formas_pago.get_by_codigo(data.forma_pago_codigo)
@@ -95,8 +95,10 @@ class PedidoService:
             )
             uow.historial.add(h)
 
-            return pedido
+            result = pedido
 
+        await self._emit_ws_events(result.id, result.estado_codigo, result)
+        return result
     def get_all(self, current_user: UsuarioRead):
         with self.uow as uow:
             pedidos = uow.pedidos.get_all()
@@ -120,19 +122,19 @@ class PedidoService:
                 raise HTTPException(403, "Acceso denegado a este pedido")
             return pedido
 
-    def update(self, pedido_id: int, data: PedidoUpdate, current_user: UsuarioRead):
+    async def update(self, pedido_id: int, data: PedidoUpdate, current_user: UsuarioRead):
         with self.uow as uow:
             pedido = uow.pedidos.get_by_id(pedido_id)
             if not pedido:
                 raise HTTPException(404, "Pedido no encontrado")
             for field, value in data.dict(exclude_unset=True).items():
                 if field == "estado_codigo" and value != pedido.estado_codigo:
-                    self.avanzar_estado(pedido.id, value, current_user)
+                    await self.avanzar_estado(pedido.id, value, current_user)
                 else:
                     setattr(pedido, field, value)
             return uow.pedidos.update(pedido)
 
-    def avanzar_estado(self, pedido_id: int, nuevo_estado: str, current_user: UsuarioRead):
+    async def avanzar_estado(self, pedido_id: int, nuevo_estado: str, current_user: UsuarioRead):
         if nuevo_estado not in ESTADOS_VALIDOS:
             raise HTTPException(400, f"Estado inválido: {nuevo_estado}")
             
@@ -180,7 +182,10 @@ class PedidoService:
             h = HistorialEstadoPedido(pedido_id=pedido.id, estado_codigo=nuevo_estado, observaciones=obs)
             uow.historial.add(h)
             
-            return pedido
+            result = pedido
+            
+        await self._emit_ws_events(result.id, result.estado_codigo, result)
+        return result
 
     def delete(self, pedido_id: int):
         with self.uow as uow:
@@ -188,3 +193,39 @@ class PedidoService:
             if not pedido:
                 raise HTTPException(404, "Pedido no encontrado")
             uow.pedidos.delete(pedido)
+
+    async def _emit_ws_events(self, pedido_id: int, destino: str, pedido_obj) -> None:
+        from app.core.websocket import manager
+        from app.modules.pedido.schema import PedidoRead
+        
+        EVENTOS_WS = {
+            "PENDIENTE":  "NUEVO_PEDIDO",
+            "CONFIRMADO": "PEDIDO_CONFIRMADO",
+            "EN_PREPARACION": "PEDIDO_EN_PREPARACION",
+            "LISTO":      "PEDIDO_LISTO",
+            "CANCELADO":  "PEDIDO_CANCELADO",
+            "ENTREGADO":  "PEDIDO_ENTREGADO",
+        }
+        
+        ROLES_POR_TRANSICION = {
+            "PENDIENTE":  ["pedidos", "admin"],
+            "CONFIRMADO": ["pedidos", "cocina", "admin"],
+            "EN_PREPARACION": ["cocina", "pedidos", "admin"],
+            "LISTO":      ["pedidos", "admin"],
+            "ENTREGADO":  ["pedidos", "admin"],
+            "CANCELADO":  ["pedidos", "cocina", "admin"],
+        }
+        
+        event_type = EVENTOS_WS.get(destino)
+        if not event_type:
+            return
+
+        data = PedidoRead.from_orm(pedido_obj).dict()
+        data["created_at"] = data["created_at"].isoformat() if data.get("created_at") else None
+        data["updated_at"] = data["updated_at"].isoformat() if data.get("updated_at") else None
+        
+        await manager.broadcast_to_order(pedido_id, event_type, data)
+
+        roles_a_notificar = ROLES_POR_TRANSICION.get(destino, [])
+        if roles_a_notificar:
+            await manager.broadcast_to_roles(roles_a_notificar, event_type, data)

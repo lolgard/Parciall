@@ -22,16 +22,24 @@ class DireccionEntregaService:
             direccion = DireccionEntrega(**data.dict())
             return uow.direccion_entregas.add(direccion)
 
-    def get_all(self, current_user: UsuarioRead):
+    def get_all(self, current_user: UsuarioRead, usuario_id: int = None, all_addresses: bool = False):
         with self.uow as uow:
             Direcciones = uow.direccion_entregas.get_all()
             if not Direcciones:
                 return []
             
-            # Si el usuario es cliente, filtrar para mostrar solo las suyas
-            if "ADMIN" not in current_user.roles:
-                return [d for d in Direcciones if d.usuario_id == current_user.id]
-            return Direcciones
+            if all_addresses:
+                if "ADMIN" not in current_user.roles:
+                    raise HTTPException(403, "Solo un ADMIN puede ver todas las direcciones")
+                return Direcciones
+                
+            target_id = current_user.id
+            if usuario_id is not None:
+                if "ADMIN" not in current_user.roles and current_user.id != usuario_id:
+                    raise HTTPException(403, "No tienes permisos para ver direcciones de otros usuarios")
+                target_id = usuario_id
+                
+            return [d for d in Direcciones if d.usuario_id == target_id]
 
     def get_by_id(self, direccion_id: int, current_user: UsuarioRead):
         with self.uow as uow:

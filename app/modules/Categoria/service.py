@@ -56,6 +56,7 @@ class CategoriaService:
             categoria.nombre = data.nombre
             categoria.descripcion = data.descripcion
             categoria.imagen_url = data.imagen_url
+            categoria.parent_id = data.parent_id
             categoria.updated_at = datetime.utcnow()
             return categoria
 
