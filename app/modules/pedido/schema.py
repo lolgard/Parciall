@@ -37,6 +37,7 @@ class PedidoRead(PedidoBase):
     id: int
     estado_codigo: Optional[str] = None
     forma_pago_codigo: Optional[str] = None
+    checkout_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None

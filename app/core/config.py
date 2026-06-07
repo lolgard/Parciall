@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     ALGORITHM:  str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # ─── Mercado Pago ─────────────────────────────────────────────────────────
+    MP_ACCESS_TOKEN: str = ""
+    MP_PUBLIC_KEY: str = ""
+    NGROK_URL: str = ""
+
     model_config = {
         "env_file":          ".env",
         "env_file_encoding": "utf-8",

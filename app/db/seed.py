@@ -14,7 +14,7 @@ Crea:
 """
 
 from datetime import datetime, timedelta
-from sqlmodel import Session, select
+from sqlmodel import Session, select, SQLModel
 from app.core.database import engine, create_db_and_tables
 from app.modules.estadoPedido.model import EstadoPedido
 from app.modules.formaPago.model import FormaPago
@@ -144,6 +144,7 @@ UNIDADES_INICIALES = [
 
 def run() -> None:
     print("=== Seed — Seguridad JWT (PostgreSQL) ===\n")
+    SQLModel.metadata.drop_all(engine)
     create_db_and_tables()
 
     with Session(engine) as session:

@@ -10,6 +10,7 @@ from app.modules.detallePedido.model import DetallePedido
 from app.modules.direccionEntrega.model import DireccionEntrega
 from app.modules.formaPago.model import FormaPago
 from app.modules.Producto.model import Producto
+from app.core.config import settings
 
 ESTADOS_VALIDOS = ["PENDIENTE", "CONFIRMADO", "EN_PREP", "LISTO", "ENTREGADO", "CANCELADO"]
 TRANSICIONES = {
@@ -177,6 +178,14 @@ class PedidoService:
                 
             pedido.estado_codigo = nuevo_estado
             uow.pedidos.update(pedido)
+            
+            # Si el pedido se cancela, reponemos el stock de los productos
+            if nuevo_estado == "CANCELADO":
+                for detalle in pedido.detalles_pedido:
+                    producto = uow.productos.get_by_id(detalle.producto_id)
+                    if producto:
+                        producto.stock_cantidad += detalle.cantidad
+                        uow.productos.update(producto)
             
             # Registrar cambio en historial a través del repositorio
             obs = f"Cambio de estado por {current_user.name} ({', '.join(current_user.roles)})"
