@@ -3,6 +3,8 @@ from app.core.database import create_db_and_tables
 from app.core.logger import setup_logging, get_logger
 from app.core.logging_middleware import LoggingMiddleware
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+from app.core.cron_pedidos import cancel_old_orders
 
 setup_logging()
 logger = get_logger("app")
@@ -53,12 +55,16 @@ app.add_middleware(
 
 # Crear tablas al iniciar (opcional en dev)
 @app.on_event("startup")
-def on_startup():
+async def on_startup():
     create_db_and_tables()
     from app.core.database import engine
     from app.core.migrations import run_migrations
     run_migrations(engine)
     logger.info("Base de datos inicializada")
+    
+    # Iniciar cron en segundo plano para autocancelar pedidos
+    asyncio.create_task(cancel_old_orders())
+    logger.info("Cron de pedidos en segundo plano iniciado")
 
 
 #  Registrar routers

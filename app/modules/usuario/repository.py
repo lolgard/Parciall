@@ -36,17 +36,20 @@ class UsuarioRepository(BaseRepository):
             select(Usuario).where(Usuario.email == username)
         ).first()
     
-    def get_by_id(self, id:int) -> Usuario | None:
+    def get_by_id(self, id: int, include_inactivos: bool = False) -> Usuario | None:
         usuario = self.session.get(Usuario, id)
 
-        if not usuario or usuario.deleted_at is not None:
+        if not usuario:
+            return None
+        if not include_inactivos and usuario.deleted_at is not None:
             return None
         return usuario
     
-    def get_all(self) -> list[Usuario]:
-        usuarios =self.session.exec(
-            select(Usuario).where(Usuario.deleted_at == None)
-        ).all()
+    def get_all(self, include_inactivos: bool = False) -> list[Usuario]:
+        q = select(Usuario)
+        if not include_inactivos:
+            q = q.where(Usuario.deleted_at == None)
+        usuarios = self.session.exec(q).all()
         for usuario in usuarios:
             self.session.refresh(usuario)
         return usuarios

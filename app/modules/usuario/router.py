@@ -28,9 +28,10 @@ def create_usuario(data: UsuarioCreate, service: UsuarioService = Depends(get_se
 def get_all(
     exclude_role: str = Query(None, description="Excluir usuarios con este rol"),
     role: str = Query(None, description="Filtrar por este rol"),
+    include_inactivos: bool = Query(default=False, description="Incluir inactivos"),
     service: UsuarioService = Depends(get_service)
 ):
-    return service.get_all(exclude_role=exclude_role, role=role)
+    return service.get_all(exclude_role=exclude_role, role=role, include_inactivos=include_inactivos)
 
 
 @router.get("/{id}", response_model=UsuarioDetallesRead)

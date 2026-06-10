@@ -31,11 +31,11 @@ async def create_pedido(
 
 
 @router.get("/", response_model=list[PedidoConDetallesRead])
-def get_all(
+async def get_all(
     current_user: UsuarioRead = Depends(get_current_active_user),
     service: PedidoService = Depends(get_service)
 ):
-    return service.get_all(current_user)
+    return await service.get_all(current_user)
 
 
 @router.get("/{id}", response_model=PedidoConDetallesRead)

@@ -36,4 +36,5 @@ class UsuarioUpdate(SQLModel):
     phone_number: Optional[int] = None
     password_hash: Optional[str] = None
     roles: Optional[list[str]] = None
+    activo: Optional[bool] = None
 

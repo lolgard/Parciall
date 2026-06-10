@@ -53,9 +53,9 @@ class UsuarioService:
             u_dict["roles"] = roles_asignados
             return u_dict
 
-    def get_all(self, exclude_role: str = None, role: str = None):
+    def get_all(self, exclude_role: str = None, role: str = None, include_inactivos: bool = False):
         with self.uow as uow:
-            usuarios = uow.usuarios.get_all()
+            usuarios = uow.usuarios.get_all(include_inactivos=include_inactivos)
             if not usuarios:
                 return []
             
@@ -85,7 +85,7 @@ class UsuarioService:
 
     def update(self, usuario_id: int, data: UsuarioUpdate):
         with self.uow as uow:
-            usuario = uow.usuarios.get_by_id(usuario_id)
+            usuario = uow.usuarios.get_by_id(usuario_id, include_inactivos=True)
             if not usuario:
                 raise HTTPException(404, "Usuario no encontrado")
 
@@ -116,6 +116,11 @@ class UsuarioService:
                         expires_at=datetime.utcnow() + timedelta(days=365)
                     )
                     uow.usuario_rol.add(rel)
+
+            if data.activo is True:
+                usuario.deleted_at = None
+            elif data.activo is False:
+                usuario.deleted_at = datetime.utcnow()
 
             uow.usuarios.update(usuario)
             

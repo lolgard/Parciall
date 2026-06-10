@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from app.core.database import get_session
 
 from app.modules.Categoria.service import CategoriaService
@@ -23,8 +23,11 @@ def create_Categoria(data:CategoriaCreate, service:CategoriaService = Depends(ge
 
 #getall
 @router.get("/", response_model=list[CategoriaRead])
-def get_all(service:CategoriaService = Depends (get_service)):
-    return service.get_all()
+def get_all(
+    include_inactivos: bool = Query(default=False, description="Incluir categorías inactivas"),
+    service:CategoriaService = Depends (get_service)
+):
+    return service.get_all(include_inactivos=include_inactivos)
 
 #get_porId
 @router.get("/{id}", response_model=CategoriaRead)

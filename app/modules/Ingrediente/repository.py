@@ -14,11 +14,13 @@ class IngredienteRepository(BaseRepository):
         self.session.add(ingrediente)
         return ingrediente 
 
-    def get_by_id(self,id:int)-> Ingrediente | None:        
-        ingrediente = self.session.get(Ingrediente,id)
+    def get_by_id(self, id: int, include_inactivos: bool = False) -> Ingrediente | None:        
+        ingrediente = self.session.get(Ingrediente, id)
         
-        if not ingrediente or ingrediente.deleted_at is not None:
-          return None
+        if not ingrediente:
+            return None
+        if not include_inactivos and ingrediente.deleted_at is not None:
+            return None
         return ingrediente
 
     def get_by_name(self,name:str)-> Ingrediente:
@@ -31,11 +33,11 @@ class IngredienteRepository(BaseRepository):
         self.session.flush()  
         return producto
 
-    def get_all(self)->list[Ingrediente]:
-        ingrediente = self.session.exec(
-            select(Ingrediente).where(Ingrediente.deleted_at == None)
-        ).all()
-        return ingrediente
+    def get_all(self, include_inactivos: bool = False) -> list[Ingrediente]:
+        q = select(Ingrediente)
+        if not include_inactivos:
+            q = q.where(Ingrediente.deleted_at == None)
+        return self.session.exec(q).all()
 
     def delete(self,ingrediente:Ingrediente)-> None:
      ingrediente.deleted_at = datetime.utcnow()

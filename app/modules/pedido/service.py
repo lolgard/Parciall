@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta
 from fastapi import HTTPException
 
 from app.modules.pedido.model import Pedido
@@ -101,17 +102,49 @@ class PedidoService:
 
         await self._emit_ws_events(result.id, result.estado_codigo, result)
         return result
-    def get_all(self, current_user: UsuarioRead):
+    async def get_all(self, current_user: UsuarioRead):
+        ahora = datetime.utcnow()
+        from datetime import timedelta
+        
+        cancelados_para_ws = []
         with self.uow as uow:
             pedidos = uow.pedidos.get_all()
             if not pedidos:
                 return []
             
+            # Auto-cancelar pedidos con más de 23h
+            for p in pedidos:
+                if p.estado_codigo not in ("ENTREGADO", "CANCELADO") and p.created_at:
+                    if (ahora - p.created_at) > timedelta(hours=23):
+                        estado_anterior = p.estado_codigo
+                        p.estado_codigo = "CANCELADO"
+                        uow.pedidos.update(p)
+                        
+                        for detalle in p.detalles_pedido:
+                            producto = uow.productos.get_by_id(detalle.producto_id)
+                            if producto:
+                                producto.stock_cantidad += detalle.cantidad
+                                uow.productos.update(producto)
+                                
+                        obs = "Cancelado automáticamente (pasaron más de 23 horas)"
+                        h = HistorialEstadoPedido(
+                            pedido_id=p.id, 
+                            estado_desde=estado_anterior,
+                            estado_codigo="CANCELADO", 
+                            observaciones=obs
+                        )
+                        uow.historial.add(h)
+                        cancelados_para_ws.append(p)
+
             # Si el usuario solo es cliente (CLIENT), filtrar sus propios pedidos
             is_employee = any(r in ["ADMIN", "PEDIDOS", "STOCK"] for r in current_user.roles)
             if not is_employee:
-                return [p for p in pedidos if p.usuario_id == current_user.id]
-            return pedidos
+                pedidos = [p for p in pedidos if p.usuario_id == current_user.id]
+        
+        for p_cancelado in cancelados_para_ws:
+            await self._emit_ws_events(p_cancelado.id, "CANCELADO", p_cancelado)
+            
+        return pedidos
 
     def get_by_id(self, pedido_id: int, current_user: UsuarioRead):
         with self.uow as uow:

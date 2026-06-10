@@ -28,18 +28,21 @@ class ProductoRepository(BaseRepository):
             select(Producto).where(Producto.name == name)
         ).first()
     
-    def get_by_id(self, id: int) -> Producto | None:
+    def get_by_id(self, id: int, include_inactivos: bool = False) -> Producto | None:
         producto = self.session.get(Producto, id)
 
-        if not producto or producto.deleted_at is not None:
+        if not producto:
+            return None
+        if not include_inactivos and producto.deleted_at is not None:
             return None
 
         return producto
 
-    def get_all(self) -> list[Producto]:
-        productos = self.session.exec(
-            select(Producto).where(Producto.deleted_at == None)
-            ).all()
+    def get_all(self, include_inactivos: bool = False) -> list[Producto]:
+        q = select(Producto)
+        if not include_inactivos:
+            q = q.where(Producto.deleted_at == None)
+        productos = self.session.exec(q).all()
         for producto in productos:
             self.session.refresh(producto)
         return productos
@@ -50,8 +53,13 @@ class ProductoRepository(BaseRepository):
         limit: int,
         search: str | None = None,
         categoria_id: int | None = None,
+        disponible: bool | None = None,
+        stock_status: str | None = None,
+        include_inactivos: bool = False,
     ) -> tuple[list[Producto], int]:
-        q = sa_select(Producto).where(Producto.deleted_at == None).order_by(Producto.id.asc())
+        q = sa_select(Producto).order_by(Producto.id.asc())
+        if not include_inactivos:
+            q = q.where(Producto.deleted_at == None)
 
         if search:
             q = q.where(Producto.name.ilike(f"%{search}%"))
@@ -61,6 +69,14 @@ class ProductoRepository(BaseRepository):
                 ProductoCategoria,
                 Producto.id == ProductoCategoria.producto_id,
             ).where(ProductoCategoria.categoria_id == categoria_id)
+
+        if disponible is not None:
+            q = q.where(Producto.disponible == disponible)
+            
+        if stock_status == "agotado":
+            q = q.where(Producto.stock_cantidad == 0)
+        elif stock_status == "bajo":
+            q = q.where(Producto.stock_cantidad > 0, Producto.stock_cantidad <= 5)
 
         total = self.session.execute(
             sa_select(sa_func.count()).select_from(q.subquery())

@@ -23,6 +23,8 @@ class CategoriaUpdate(CategoriaBase):
     descripcion:Optional[str] = None
     imagen_url: Optional[str] = None
     parent_id: Optional[int] = None
+    activo: Optional[bool] = None
+    estrategia_baja: Optional[str] = None
 
 class CategoryResponse(CategoriaBase):
     id:       int

@@ -14,9 +14,11 @@ class CategoriaRepository(BaseRepository):
         self.session.add(categoria)
         return categoria 
     
-    def get_by_id(self,id:int)-> Categoria | None:
-        categoria = self.session.get(Categoria,id)
-        if not categoria or categoria.deleted_at is not None:
+    def get_by_id(self, id: int, include_inactivos: bool = False) -> Categoria | None:
+        categoria = self.session.get(Categoria, id)
+        if not categoria:
+            return None
+        if not include_inactivos and categoria.deleted_at is not None:
             return None
         return categoria
 
@@ -35,11 +37,12 @@ class CategoriaRepository(BaseRepository):
         self.session.flush()
         return categoria
 
-    def get_all(self)->list[Categoria]:
-     categoria = self.session.exec(
-         select(Categoria).where(Categoria.deleted_at == None)
-        ).all()
-     return categoria
+    def get_all(self, include_inactivos: bool = False)->list[Categoria]:
+        q = select(Categoria)
+        if not include_inactivos:
+            q = q.where(Categoria.deleted_at == None)
+        categoria = self.session.exec(q).all()
+        return categoria
 
     def delete(self,categoria:Categoria)-> None:
      categoria.deleted_at = datetime.utcnow()

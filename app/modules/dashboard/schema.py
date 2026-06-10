@@ -17,6 +17,7 @@ class DashboardKpis(BaseModel):
 class ChartDataPoint(BaseModel):
     label: str
     value: float | int
+    count: Optional[int] = None
 
 class ChartResponse(BaseModel):
     data: List[ChartDataPoint]

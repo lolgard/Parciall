@@ -13,9 +13,10 @@ class IngredienteRead(IngredienteBase):
     id:int
     created_at: datetime 
     updated_at: datetime 
+    deleted_at: Optional[datetime] = None 
 
-class IngredienteUpdate(IngredienteBase):
-    id:int
+class IngredienteUpdate(SQLModel):
     name : Optional[str] =None
     description:Optional[str]=None
     esAlergeno:Optional[bool] =None
+    activo: Optional[bool] = None

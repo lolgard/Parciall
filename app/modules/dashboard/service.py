@@ -136,7 +136,8 @@ class DashboardService:
         
         stmt = select(
             func.date(Pedido.created_at).label("fecha"),
-            func.sum(Pedido.total).label("total")
+            func.sum(Pedido.total).label("total"),
+            func.count(Pedido.id).label("cantidad")
         ).where(
             Pedido.estado_codigo == "ENTREGADO",
             Pedido.created_at >= start_date,
@@ -147,7 +148,11 @@ class DashboardService:
         
         data = []
         for row in results:
-            data.append(ChartDataPoint(label=str(row.fecha), value=float(row.total or 0)))
+            data.append(ChartDataPoint(
+                label=str(row.fecha), 
+                value=float(row.total or 0),
+                count=int(row.cantidad or 0)
+            ))
             
         return ChartResponse(data=data)
 

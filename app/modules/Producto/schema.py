@@ -25,6 +25,7 @@ class ProductoIngredienteRead(SQLModel):
 
 class ProductoRead(ProductoBase):
     id: Optional[int] = None
+    deleted_at: Optional[datetime] = None
     categorias: list[ProductoCategoriaRead] = []
     ingredientes: list[ProductoIngredienteRead] = []
     
@@ -41,6 +42,7 @@ class ProductoUpdate(SQLModel):
     disponible: Optional[bool] = None
     categorias: Optional[list[int]] = None
     ingredientes: Optional[list[int]] = None
+    activo: Optional[bool] = None
     unidad_medida_id: Optional[int] = None
     imagen_url: Optional[str] = None
     descripcion: Optional[str] = None

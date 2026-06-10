@@ -85,6 +85,9 @@ class ProductoService():
         page_size: int,
         search: str | None = None,
         categoria_id: int | None = None,
+        disponible: bool | None = None,
+        stock_status: str | None = None,
+        include_inactivos: bool = False,
     ) -> PaginatedResponse:
         if page < 1:
             raise HTTPException(400, "La página debe ser mayor a 0")
@@ -95,7 +98,7 @@ class ProductoService():
 
         with self.uow as uow:
             items, total = uow.productos.get_paginated(
-                offset, page_size, search=search, categoria_id=categoria_id
+                offset, page_size, search=search, categoria_id=categoria_id, disponible=disponible, stock_status=stock_status, include_inactivos=include_inactivos
             )
             items_read = [ProductoRead.model_validate(item) for item in items]
             logger.info(
@@ -112,32 +115,46 @@ class ProductoService():
     def update(self, product_id: int, data: ProductoUpdate):
         logger.info(f"Actualizando producto id={product_id}")
         with self.uow as uow:
-            producto = uow.productos.get_by_id(product_id)
+            producto = uow.productos.get_by_id(product_id, include_inactivos=True)
             if not producto:
                 logger.warning(f"Producto id={product_id} no encontrado para update")
                 raise HTTPException(404, "Producto no encontrado")
         
-            producto.name = data.name
-            producto.price = data.price
-            producto.stock_cantidad = data.stock_cantidad
-            producto.disponible = data.disponible
-            producto.imagen_url = data.imagen_url
+        
+            if data.name is not None:
+                producto.name = data.name
+            if data.price is not None:
+                producto.price = data.price
+            if data.stock_cantidad is not None:
+                producto.stock_cantidad = data.stock_cantidad
+            if data.disponible is not None:
+                producto.disponible = data.disponible
+            if data.imagen_url is not None:
+                producto.imagen_url = data.imagen_url
+            if data.descripcion is not None:
+                producto.descripcion = data.descripcion
+            
+            if data.activo is True:
+                producto.deleted_at = None
+            elif data.activo is False:
+                producto.deleted_at = datetime.utcnow()
 
-            viejas_cats = uow.producto_categorias.get_by_producto(product_id)
-            for rel in viejas_cats:
-                uow.producto_categorias.delete(rel)
-
-            for cat_id in set(data.categorias):
-                categoria = uow.categorias.get_by_id(cat_id)
-                if not categoria:
-                    raise HTTPException(404, f"Categoria {cat_id} no existe")
-                uow.producto_categorias.add(
-                    ProductoCategoria(
-                        producto_id=product_id,
-                        categoria_id=cat_id,
-                        es_principal=False
+            if data.categorias is not None:
+                viejas_cats = uow.producto_categorias.get_by_producto(product_id)
+                for rel in viejas_cats:
+                    uow.producto_categorias.delete(rel)
+    
+                for cat_id in set(data.categorias):
+                    categoria = uow.categorias.get_by_id(cat_id)
+                    if not categoria:
+                        raise HTTPException(404, f"Categoria {cat_id} no existe")
+                    uow.producto_categorias.add(
+                        ProductoCategoria(
+                            producto_id=product_id,
+                            categoria_id=cat_id,
+                            es_principal=False
+                        )
                     )
-                )
             
             uow.productos.update(producto)
             return producto

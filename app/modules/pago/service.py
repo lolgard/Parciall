@@ -106,17 +106,13 @@ class PagoService:
                     )
                     uow.historial.add(h)
                     
-                    # Guardamos el pedido dict para poder emitir el evento WS sin error de sesión
                     from app.modules.pedido.schema import PedidoRead
                     pedido_actualizado_dict = PedidoRead.from_orm(pedido).dict()
                     pedido_actualizado_dict["created_at"] = pedido_actualizado_dict["created_at"].isoformat() if pedido_actualizado_dict.get("created_at") else None
                     pedido_actualizado_dict["updated_at"] = pedido_actualizado_dict["updated_at"].isoformat() if pedido_actualizado_dict.get("updated_at") else None
 
-        # Emitimos los WS events FUERA del context manager with uow (porque hace commit)
         if mp_status == "approved" and 'pedido_actualizado_dict' in locals():
             from app.core.websocket import manager
-            
-            # Roles y eventos
             EVENTOS_WS = {"CONFIRMADO": "PEDIDO_CONFIRMADO"}
             ROLES_POR_TRANSICION = {"CONFIRMADO": ["pedidos", "cocina", "admin"]}
             
@@ -126,9 +122,6 @@ class PagoService:
         return {"status": "ok"}
 
     def crear_preferencia(self, pedido_id: int, current_user_id: int) -> dict:
-        """
-        Paso 2: Genera la preferencia de pago para un pedido existente usando la Factory.
-        """
         with self.uow as uow:
             pedido = uow.pedidos.get_by_id(pedido_id)
             if not pedido:
