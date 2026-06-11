@@ -40,42 +40,62 @@ class DashboardService:
 
     # ── KPIs ──────────────────────────────────────────────────────────────────
 
-    def get_kpis(self) -> DashboardKpis:
-        today_start = datetime.combine(datetime.utcnow().date(), time.min)
-        yesterday_start = today_start - timedelta(days=1)
+    def get_kpis(self, start_date: datetime | None = None, end_date: datetime | None = None) -> DashboardKpis:
         now = datetime.utcnow()
+        if not end_date:
+            end_date = now
+        
+        if not start_date:
+            # Por defecto: "Hoy" (desde la medianoche hasta ahora)
+            current_start = datetime.combine(end_date.date(), time.min)
+            delta = timedelta(days=1)
+            previous_start = current_start - delta
+            previous_end = current_start
+            trend_label = "vs ayer"
+        else:
+            current_start = start_date
+            delta = end_date - start_date
+            # El período anterior tiene exactamente la misma duración y termina justo donde empieza el actual
+            previous_start = current_start - delta
+            previous_end = current_start
+            
+            # Si el filtro es exactamente de 1 día (ej. "Hoy"), mantenemos "vs ayer". Si no, "vs período anterior"
+            if delta.days <= 1:
+                trend_label = "vs ayer"
+            else:
+                trend_label = "vs período anterior"
 
         with self.uow as uow:
-            # 1. Recaudación hoy vs ayer
-            rev_today = uow.dashboard.get_revenue(today_start, now)
-            rev_yesterday = uow.dashboard.get_revenue(yesterday_start, today_start)
-            rev_trend, rev_status = self._calculate_trend(rev_today, rev_yesterday)
+            # 1. Recaudación
+            rev_current = uow.dashboard.get_revenue(current_start, end_date)
+            rev_previous = uow.dashboard.get_revenue(previous_start, previous_end)
+            rev_trend, rev_status = self._calculate_trend(rev_current, rev_previous)
 
             recaudacion = KpiMetric(
-                value=rev_today,
-                trend=f"{rev_trend} vs ayer",
+                value=rev_current,
+                trend=f"{rev_trend} {trend_label}",
                 status=rev_status,
-                label="Recaudación Hoy",
+                label="Recaudación",
                 subtext="En base a pedidos entregados",
             )
 
-            # 2. Pedidos completados hoy vs ayer
-            comp_today = uow.dashboard.get_completed_orders_count(today_start, now)
-            comp_yesterday = uow.dashboard.get_completed_orders_count(yesterday_start, today_start)
-            comp_trend, comp_status = self._calculate_trend(comp_today, comp_yesterday)
+            # 2. Pedidos completados
+            comp_current = uow.dashboard.get_completed_orders_count(current_start, end_date)
+            comp_previous = uow.dashboard.get_completed_orders_count(previous_start, previous_end)
+            comp_trend, comp_status = self._calculate_trend(comp_current, comp_previous)
 
             pedidos_completados = KpiMetric(
-                value=comp_today,
-                trend=f"{comp_trend} vs ayer",
+                value=comp_current,
+                trend=f"{comp_trend} {trend_label}",
                 status=comp_status,
                 label="Pedidos Completados",
                 subtext="Pedidos en estado ENTREGADO",
             )
 
-            # 3. Pedidos pendientes hoy vs ayer
-            pend_today = uow.dashboard.get_pending_orders_count(today_start, now)
-            pend_yesterday = uow.dashboard.get_pending_orders_count(yesterday_start, today_start)
-            pend_trend, pend_status_raw = self._calculate_trend(pend_today, pend_yesterday)
+            # 3. Pedidos pendientes
+            pend_current = uow.dashboard.get_pending_orders_count(current_start, end_date)
+            pend_previous = uow.dashboard.get_pending_orders_count(previous_start, previous_end)
+            pend_trend, pend_status_raw = self._calculate_trend(pend_current, pend_previous)
             # Invertimos el sentido: más pendientes es "peor" (down)
             pend_status = (
                 "down" if pend_status_raw == "up"
@@ -84,14 +104,14 @@ class DashboardService:
             )
 
             pedidos_pendientes = KpiMetric(
-                value=pend_today,
-                trend=f"{pend_trend} vs ayer",
+                value=pend_current,
+                trend=f"{pend_trend} {trend_label}",
                 status=pend_status,
                 label="Pedidos Pendientes",
                 subtext="Pedidos no finalizados",
             )
 
-            # 4. Productos con bajo stock
+            # 4. Productos con bajo stock (ignora fechas)
             low_stock_count = uow.dashboard.get_low_stock_count(threshold=5)
 
             bajo_stock = KpiMetric(

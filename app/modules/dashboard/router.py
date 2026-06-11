@@ -18,13 +18,15 @@ def get_dashboard_service(session: Session = Depends(get_session)) -> DashboardS
 
 @router.get("/kpis", response_model=DashboardKpis)
 def get_kpis(
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
     service: DashboardService = Depends(get_dashboard_service),
     _=Depends(require_role(["ADMIN"])),
 ):
     """
     Obtiene los KPIs principales (Recaudación, Pedidos completados, pendientes, bajo stock).
     """
-    return service.get_kpis()
+    return service.get_kpis(start_date, end_date)
 
 
 @router.get("/sales-over-time", response_model=ChartResponse)
