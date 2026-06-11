@@ -1,197 +1,149 @@
-from sqlmodel import Session, select, func
+"""
+DashboardService
+================
+Servicio de lógica de negocio para el Dashboard.
+
+Utiliza DashboardUnitOfWork para el acceso a datos, siguiendo el
+mismo contrato que el resto de los módulos del proyecto.
+"""
 from datetime import datetime, timedelta, time
-from sqlalchemy.orm import aliased
-from app.modules.pedido.model import Pedido
-from app.modules.detallePedido.model import DetallePedido
-from app.modules.Producto.model import Producto
-from app.modules.dashboard.schema import DashboardKpis, KpiMetric, ChartDataPoint, ChartResponse
+
+from app.modules.dashboard.unit_of_work import DashboardUnitOfWork
+from app.modules.dashboard.schema import (
+    DashboardKpis,
+    KpiMetric,
+    ChartDataPoint,
+    ChartResponse,
+)
+
 
 class DashboardService:
-    def __init__(self, session: Session):
-        self.session = session
+
+    def __init__(self, uow: DashboardUnitOfWork):
+        self.uow = uow
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _calculate_trend(self, current: float, previous: float) -> tuple[str, str]:
+        """Calcula la variación porcentual y el estado (up/down/neutral)."""
         if previous == 0:
-            if current > 0:
-                return "+100%", "up"
-            return "0%", "neutral"
-        
+            return ("+100%", "up") if current > 0 else ("0%", "neutral")
+
         diff = current - previous
         percentage = (diff / previous) * 100
-        
-        status = "neutral"
+
         if percentage > 0:
-            status = "up"
-            trend_str = f"+{percentage:.0f}%"
+            return f"+{percentage:.0f}%", "up"
         elif percentage < 0:
-            status = "down"
-            trend_str = f"{percentage:.0f}%"
-        else:
-            trend_str = "0%"
-            
-        return trend_str, status
+            return f"{percentage:.0f}%", "down"
+        return "0%", "neutral"
+
+    # ── KPIs ──────────────────────────────────────────────────────────────────
 
     def get_kpis(self) -> DashboardKpis:
         today_start = datetime.combine(datetime.utcnow().date(), time.min)
         yesterday_start = today_start - timedelta(days=1)
-        
-        # 1. Recaudación Hoy vs Ayer (Solo ENTREGADO)
-        def get_revenue(start_dt, end_dt):
-            stmt = select(func.sum(Pedido.total)).where(
-                Pedido.estado_codigo == "ENTREGADO",
-                Pedido.created_at >= start_dt,
-                Pedido.created_at < end_dt
-            )
-            return self.session.exec(stmt).one_or_none() or 0.0
+        now = datetime.utcnow()
 
-        rev_today = get_revenue(today_start, datetime.utcnow())
-        rev_yesterday = get_revenue(yesterday_start, today_start)
-        
-        rev_trend, rev_status = self._calculate_trend(rev_today, rev_yesterday)
-        
-        recaudacion = KpiMetric(
-            value=rev_today,
-            trend=f"{rev_trend} vs ayer",
-            status=rev_status,
-            label="Recaudación Hoy",
-            subtext="En base a pedidos entregados"
-        )
-        
-        # 2. Pedidos Completados Hoy vs Ayer
-        def get_completed_orders(start_dt, end_dt):
-            stmt = select(func.count(Pedido.id)).where(
-                Pedido.estado_codigo == "ENTREGADO",
-                Pedido.created_at >= start_dt,
-                Pedido.created_at < end_dt
-            )
-            return self.session.exec(stmt).one_or_none() or 0
+        with self.uow as uow:
+            # 1. Recaudación hoy vs ayer
+            rev_today = uow.dashboard.get_revenue(today_start, now)
+            rev_yesterday = uow.dashboard.get_revenue(yesterday_start, today_start)
+            rev_trend, rev_status = self._calculate_trend(rev_today, rev_yesterday)
 
-        comp_today = get_completed_orders(today_start, datetime.utcnow())
-        comp_yesterday = get_completed_orders(yesterday_start, today_start)
-        
-        comp_trend, comp_status = self._calculate_trend(comp_today, comp_yesterday)
-        
-        pedidos_completados = KpiMetric(
-            value=comp_today,
-            trend=f"{comp_trend} vs ayer",
-            status=comp_status,
-            label="Pedidos Completados",
-            subtext="Pedidos en estado ENTREGADO"
-        )
-        
-        # 3. Pedidos Pendientes Hoy vs Ayer
-        # Pendientes incluyen PENDIENTE y EN_PREP
-        pendientes_estados = ["PENDIENTE", "CONFIRMADO", "EN_PREP", "LISTO"]
-        
-        def get_pending_orders(start_dt, end_dt):
-            stmt = select(func.count(Pedido.id)).where(
-                Pedido.estado_codigo.in_(pendientes_estados),
-                Pedido.created_at >= start_dt,
-                Pedido.created_at < end_dt
+            recaudacion = KpiMetric(
+                value=rev_today,
+                trend=f"{rev_trend} vs ayer",
+                status=rev_status,
+                label="Recaudación Hoy",
+                subtext="En base a pedidos entregados",
             )
-            return self.session.exec(stmt).one_or_none() or 0
-            
-        pend_today = get_pending_orders(today_start, datetime.utcnow())
-        pend_yesterday = get_pending_orders(yesterday_start, today_start)
-        
-        # Para pendientes, menos es mejor, así que invertimos el status visual (opcional)
-        pend_trend, pend_status_raw = self._calculate_trend(pend_today, pend_yesterday)
-        # Si suben los pendientes, es "down" (malo), si bajan es "up" (bueno)
-        pend_status = "down" if pend_status_raw == "up" else ("up" if pend_status_raw == "down" else "neutral")
-        
-        pedidos_pendientes = KpiMetric(
-            value=pend_today,
-            trend=f"{pend_trend} vs ayer",
-            status=pend_status,
-            label="Pedidos Pendientes",
-            subtext="Pedidos no finalizados"
-        )
-        
-        # 4. Productos Bajo Stock
-        # Contamos cuántos productos tienen stock_cantidad <= 5
-        stmt_stock = select(func.count(Producto.id)).where(
-            Producto.stock_cantidad <= 5,
-            Producto.deleted_at.is_(None)
-        )
-        low_stock_count = self.session.exec(stmt_stock).one_or_none() or 0
-        
-        bajo_stock = KpiMetric(
-            value=low_stock_count,
-            trend="Revisar inventario",
-            status="down" if low_stock_count > 0 else "up",
-            label="Productos Bajo Stock",
-            subtext="Artículos con 5 unidades o menos"
-        )
-        
+
+            # 2. Pedidos completados hoy vs ayer
+            comp_today = uow.dashboard.get_completed_orders_count(today_start, now)
+            comp_yesterday = uow.dashboard.get_completed_orders_count(yesterday_start, today_start)
+            comp_trend, comp_status = self._calculate_trend(comp_today, comp_yesterday)
+
+            pedidos_completados = KpiMetric(
+                value=comp_today,
+                trend=f"{comp_trend} vs ayer",
+                status=comp_status,
+                label="Pedidos Completados",
+                subtext="Pedidos en estado ENTREGADO",
+            )
+
+            # 3. Pedidos pendientes hoy vs ayer
+            pend_today = uow.dashboard.get_pending_orders_count(today_start, now)
+            pend_yesterday = uow.dashboard.get_pending_orders_count(yesterday_start, today_start)
+            pend_trend, pend_status_raw = self._calculate_trend(pend_today, pend_yesterday)
+            # Invertimos el sentido: más pendientes es "peor" (down)
+            pend_status = (
+                "down" if pend_status_raw == "up"
+                else "up" if pend_status_raw == "down"
+                else "neutral"
+            )
+
+            pedidos_pendientes = KpiMetric(
+                value=pend_today,
+                trend=f"{pend_trend} vs ayer",
+                status=pend_status,
+                label="Pedidos Pendientes",
+                subtext="Pedidos no finalizados",
+            )
+
+            # 4. Productos con bajo stock
+            low_stock_count = uow.dashboard.get_low_stock_count(threshold=5)
+
+            bajo_stock = KpiMetric(
+                value=low_stock_count,
+                trend="Revisar inventario",
+                status="down" if low_stock_count > 0 else "up",
+                label="Productos Bajo Stock",
+                subtext="Artículos con 5 unidades o menos",
+            )
+
         return DashboardKpis(
             recaudacion=recaudacion,
             pedidos_completados=pedidos_completados,
             pedidos_pendientes=pedidos_pendientes,
-            bajo_stock=bajo_stock
+            bajo_stock=bajo_stock,
         )
-        
+
+    # ── Gráficos ──────────────────────────────────────────────────────────────
+
     def get_sales_over_time(self, start_date: datetime, end_date: datetime) -> ChartResponse:
-        # Esto depende de tu dialecto SQL para truncar fechas, en Postgres es date_trunc
-        # En SQLite puro es más complejo, pero SQLModel/SQLAlchemy puede agrupar por func.date
-        
-        stmt = select(
-            func.date(Pedido.created_at).label("fecha"),
-            func.sum(Pedido.total).label("total"),
-            func.count(Pedido.id).label("cantidad")
-        ).where(
-            Pedido.estado_codigo == "ENTREGADO",
-            Pedido.created_at >= start_date,
-            Pedido.created_at <= end_date
-        ).group_by(func.date(Pedido.created_at)).order_by(func.date(Pedido.created_at))
-        
-        results = self.session.exec(stmt).all()
-        
-        data = []
-        for row in results:
-            data.append(ChartDataPoint(
-                label=str(row.fecha), 
-                value=float(row.total or 0),
-                count=int(row.cantidad or 0)
-            ))
-            
-        return ChartResponse(data=data)
+        with self.uow as uow:
+            rows = uow.dashboard.get_sales_over_time(start_date, end_date)
+
+        return ChartResponse(
+            data=[
+                ChartDataPoint(
+                    label=str(row.fecha),
+                    value=float(row.total or 0),
+                    count=int(row.cantidad or 0),
+                )
+                for row in rows
+            ]
+        )
 
     def get_orders_by_status(self, start_date: datetime, end_date: datetime) -> ChartResponse:
-        stmt = select(
-            Pedido.estado_codigo,
-            func.count(Pedido.id).label("cantidad")
-        ).where(
-            Pedido.created_at >= start_date,
-            Pedido.created_at <= end_date
-        ).group_by(Pedido.estado_codigo)
-        
-        results = self.session.exec(stmt).all()
-        
-        data = []
-        for row in results:
-            data.append(ChartDataPoint(label=str(row.estado_codigo), value=int(row.cantidad or 0)))
-            
-        return ChartResponse(data=data)
+        with self.uow as uow:
+            rows = uow.dashboard.get_orders_by_status(start_date, end_date)
+
+        return ChartResponse(
+            data=[
+                ChartDataPoint(label=str(row.estado_codigo), value=int(row.cantidad or 0))
+                for row in rows
+            ]
+        )
 
     def get_top_products(self, start_date: datetime, end_date: datetime, limit: int = 5) -> ChartResponse:
-        # Sumamos las cantidades de DetallePedido agrupando por Producto
-        stmt = select(
-            Producto.name,
-            func.sum(DetallePedido.cantidad).label("vendidos")
-        ).join(
-            DetallePedido, DetallePedido.producto_id == Producto.id
-        ).join(
-            Pedido, Pedido.id == DetallePedido.pedido_id
-        ).where(
-            Pedido.estado_codigo == "ENTREGADO",
-            Pedido.created_at >= start_date,
-            Pedido.created_at <= end_date
-        ).group_by(Producto.name).order_by(func.sum(DetallePedido.cantidad).desc()).limit(limit)
-        
-        results = self.session.exec(stmt).all()
-        
-        data = []
-        for row in results:
-            data.append(ChartDataPoint(label=str(row.name), value=int(row.vendidos or 0)))
-            
-        return ChartResponse(data=data)
+        with self.uow as uow:
+            rows = uow.dashboard.get_top_products(start_date, end_date, limit)
+
+        return ChartResponse(
+            data=[
+                ChartDataPoint(label=str(row.name), value=int(row.vendidos or 0))
+                for row in rows
+            ]
+        )

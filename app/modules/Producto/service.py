@@ -47,8 +47,13 @@ class ProductoService():
             producto = Producto(**data_dict)
             uow.productos.add(producto)
 
-            # categorías 
-            for cat_id in set(data.categorias):
+            # categorías (preservando el orden enviado)
+            seen_cats = []
+            for cat_id in data.categorias:
+                if cat_id not in seen_cats:
+                    seen_cats.append(cat_id)
+
+            for i, cat_id in enumerate(seen_cats):
                 categoria = uow.categorias.get_by_id(cat_id)
                 if not categoria:
                     raise HTTPException(404, f"Categoria {cat_id} no existe")
@@ -57,9 +62,10 @@ class ProductoService():
                     ProductoCategoria(
                         producto_id=producto.id,
                         categoria_id=cat_id,
-                        es_principal=False
+                        es_principal=(i == 0)
                     )
                 )
+
 
             # ingredientes 
             if data.ingredientes:
@@ -144,7 +150,12 @@ class ProductoService():
                 for rel in viejas_cats:
                     uow.producto_categorias.delete(rel)
     
-                for cat_id in set(data.categorias):
+                seen_cats = []
+                for cat_id in data.categorias:
+                    if cat_id not in seen_cats:
+                        seen_cats.append(cat_id)
+
+                for i, cat_id in enumerate(seen_cats):
                     categoria = uow.categorias.get_by_id(cat_id)
                     if not categoria:
                         raise HTTPException(404, f"Categoria {cat_id} no existe")
@@ -152,9 +163,10 @@ class ProductoService():
                         ProductoCategoria(
                             producto_id=product_id,
                             categoria_id=cat_id,
-                            es_principal=False
+                            es_principal=(i == 0)
                         )
                     )
+
             
             uow.productos.update(producto)
             return producto

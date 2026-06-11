@@ -32,6 +32,8 @@ from app.modules.detallePedido.router import router as detalle_pedido_router
 from app.modules.auth.router import router as auth_router
 from app.modules.pago.router import router as pago_router
 from app.modules.dashboard.router import router as dashboard_router
+from app.modules.upload.router import router as upload_router
+
 
 #crea la app
 app = FastAPI(
@@ -79,6 +81,8 @@ app.include_router(detalle_pedido_router)
 app.include_router(auth_router)
 app.include_router(pago_router)
 app.include_router(dashboard_router)
+app.include_router(upload_router)
+
 
 @app.get("/")
 def root():
