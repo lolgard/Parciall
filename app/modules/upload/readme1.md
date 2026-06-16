@@ -8,7 +8,7 @@ class UsuarioBase(SQLModel):
     email: str
     name: st
     lastname: st
-    phone_number: Optional[int] = None
+    phone_number: Optional[int] = Non
 
 class UsuarioCreate(UsuarioBase):
     password_hash: st
