@@ -167,3 +167,35 @@ modulo/
 ## CORS
 
 Configurado para aceptar requests desde `http://localhost:5173` (frontend Vite en desarrollo).
+
+##
+```
+Estructura de proyecto
+app/
+├── core/
+│   ├── config.py        # Variables de entorno (pydantic-settings)
+│   ├── database.py      # Engine y sesión SQLModel
+│   ├── deps.py          # Dependencias FastAPI
+│   ├── repository.py    # BaseRepository genérico (CRUD)
+│   ├── security.py      # Hash bcrypt + JWT
+│   └── unit_of_work.py  # BaseUnitOfWork (manejo de transacciones)
+├── db/
+│   └── seed.py          # Script de datos iniciales
+├── modules/
+│   ├── Categoria/
+│   ├── Ingrediente/
+│   ├── Producto/
+│   ├── ProductoCategoria/
+│   ├── ProductoIngredientes/
+│   ├── detallePedido/
+│   ├── direccionEntrega/
+│   ├── estadoPedido/
+│   ├── formaPago/
+│   ├── pedido/
+│   ├── refreshToken/
+│   ├── rol/
+│   ├── unidadDeMedida/
+│   ├── usuario/
+│   └── usuarioRol/
+└── main.py              # Punto de entrada, registro de routers y CORS
+```
