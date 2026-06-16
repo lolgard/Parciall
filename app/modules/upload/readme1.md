@@ -6,7 +6,7 @@ from sqlmodel import SQLModel
 from app.modules.rol.schema import RolRead
 class UsuarioBase(SQLModel):
     email: str
-    name: st
+    name: s
     lastname: st
     phone_number: Optional[int] = Non
 
