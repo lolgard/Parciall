@@ -7,7 +7,7 @@ from app.modules.rol.schema import RolRead
 class UsuarioBase(SQLModel):
     email: str
     name: st
-    lastname: str
+    lastname: st
     phone_number: Optional[int] = None
 
 class UsuarioCreate(UsuarioBase):
