@@ -197,5 +197,5 @@ app/
 │   ├── unidadDeMedida/
 │   ├── usuario/
 │   └── usuarioRol/
-└── main.py              # Punto de entrada, registro de routers y COR
+└── main.py              # Punto de entrada, registro de routers y CO
 ```
