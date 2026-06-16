@@ -11,7 +11,7 @@ class UsuarioBase(SQLModel):
     phone_number: Optional[int] = None
 
 class UsuarioCreate(UsuarioBase):
-    password_hash: str
+    password_hash: st
     roles: Optional[list[str]] = None
 
 class UsuarioRead(UsuarioBase):
