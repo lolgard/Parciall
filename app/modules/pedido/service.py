@@ -102,49 +102,75 @@ class PedidoService:
 
         await self._emit_ws_events(result.id, result.estado_codigo, result)
         return result
-    async def get_all(self, current_user: UsuarioRead):
+    async def auto_cancel_expired_orders(self):
         ahora = datetime.utcnow()
         from datetime import timedelta
-        
         cancelados_para_ws = []
+        with self.uow as uow:
+            # Optimizacion: buscar unicamente ordenes pendientes/activas anteriores a 23h
+            from sqlmodel import select
+            query = select(Pedido).where(
+                Pedido.estado_codigo.in_(["PENDIENTE", "CONFIRMADO", "EN_PREP", "LISTO"]),
+                Pedido.created_at < (ahora - timedelta(hours=23)),
+                Pedido.deleted_at == None
+            )
+            pedidos_expirados = uow._session.exec(query).all()
+            
+            for p in pedidos_expirados:
+                estado_anterior = p.estado_codigo
+                p.estado_codigo = "CANCELADO"
+                uow.pedidos.update(p)
+                
+                for detalle in p.detalles_pedido:
+                    producto = uow.productos.get_by_id(detalle.producto_id)
+                    if producto:
+                        producto.stock_cantidad += detalle.cantidad
+                        uow.productos.update(producto)
+                        
+                obs = "Cancelado automáticamente (pasaron más de 23 horas)"
+                h = HistorialEstadoPedido(
+                    pedido_id=p.id, 
+                    estado_desde=estado_anterior,
+                    estado_codigo="CANCELADO", 
+                    observaciones=obs
+                )
+                uow.historial.add(h)
+                cancelados_para_ws.append(p)
+                
+        for p_cancelado in cancelados_para_ws:
+            await self._emit_ws_events(p_cancelado.id, "CANCELADO", p_cancelado)
+
+    async def get_all(self, current_user: UsuarioRead):
+        await self.auto_cancel_expired_orders()
         with self.uow as uow:
             pedidos = uow.pedidos.get_all()
             if not pedidos:
                 return []
             
-            # Auto-cancelar pedidos con más de 23h
-            for p in pedidos:
-                if p.estado_codigo not in ("ENTREGADO", "CANCELADO") and p.created_at:
-                    if (ahora - p.created_at) > timedelta(hours=23):
-                        estado_anterior = p.estado_codigo
-                        p.estado_codigo = "CANCELADO"
-                        uow.pedidos.update(p)
-                        
-                        for detalle in p.detalles_pedido:
-                            producto = uow.productos.get_by_id(detalle.producto_id)
-                            if producto:
-                                producto.stock_cantidad += detalle.cantidad
-                                uow.productos.update(producto)
-                                
-                        obs = "Cancelado automáticamente (pasaron más de 23 horas)"
-                        h = HistorialEstadoPedido(
-                            pedido_id=p.id, 
-                            estado_desde=estado_anterior,
-                            estado_codigo="CANCELADO", 
-                            observaciones=obs
-                        )
-                        uow.historial.add(h)
-                        cancelados_para_ws.append(p)
-
             # Si el usuario solo es cliente (CLIENT), filtrar sus propios pedidos
             is_employee = any(r in ["ADMIN", "PEDIDOS", "STOCK"] for r in current_user.roles)
             if not is_employee:
                 pedidos = [p for p in pedidos if p.usuario_id == current_user.id]
         
-        for p_cancelado in cancelados_para_ws:
-            await self._emit_ws_events(p_cancelado.id, "CANCELADO", p_cancelado)
-            
         return pedidos
+
+    async def get_my_orders_paginated(self, current_user: UsuarioRead, page: int, size: int, estado_filter: str | None, search: str | None):
+        await self.auto_cancel_expired_orders()
+        skip = (page - 1) * size
+        with self.uow as uow:
+            total = uow.pedidos.count_by_user(current_user.id, estado_filter, search)
+            pedidos = uow.pedidos.get_paginated_by_user(current_user.id, estado_filter, search, skip, size)
+            
+            import math
+            total_pages = math.ceil(total / size) if size > 0 else 0
+            
+            return {
+                "items": pedidos,
+                "total": total,
+                "page": page,
+                "size": size,
+                "total_pages": total_pages
+            }
 
     def get_by_id(self, pedido_id: int, current_user: UsuarioRead):
         with self.uow as uow:

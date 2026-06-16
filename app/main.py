@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from app.core.database import create_db_and_tables
 from app.core.logger import setup_logging, get_logger
 from app.core.logging_middleware import LoggingMiddleware
+from app.core.rate_limit_middleware import RateLimitMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from app.core.cron_pedidos import cancel_old_orders
@@ -47,6 +48,7 @@ origins = [
 ]
 
 app.add_middleware(LoggingMiddleware)
+app.add_middleware(RateLimitMiddleware, max_requests=100, window_seconds=60)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

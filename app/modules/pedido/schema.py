@@ -92,3 +92,10 @@ class GuestOrderResponse(SQLModel):
     total: float
     subtotal: float
     created_at: datetime
+
+class PaginatedPedidosRead(SQLModel):
+    items: List[PedidoConDetallesRead]
+    total: int
+    page: int
+    size: int
+    total_pages: int

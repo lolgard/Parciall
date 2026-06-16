@@ -37,6 +37,20 @@ async def get_all(
 ):
     return await service.get_all(current_user)
 
+from app.modules.pedido.schema import PaginatedPedidosRead
+
+@router.get("/mis-pedidos", response_model=PaginatedPedidosRead)
+async def get_mis_pedidos(
+    page: int = 1,
+    size: int = 10,
+    estado: str | None = None,
+    search: str | None = None,
+    current_user: UsuarioRead = Depends(get_current_active_user),
+    service: PedidoService = Depends(get_service)
+):
+    return await service.get_my_orders_paginated(current_user, page, size, estado, search)
+
+
 
 @router.get("/{id}", response_model=PedidoConDetallesRead)
 def get_by_id(
