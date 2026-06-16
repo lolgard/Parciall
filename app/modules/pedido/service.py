@@ -46,6 +46,10 @@ class PedidoService:
 
             # 3. Validar productos, calcular subtotal y actualizar stock
             subtotal = 0.0
+            
+            # Usaremos una lista temporal para guardar los datos calculados reales y no volver a hacer la consulta en la BD
+            detalles_calculados = []
+            
             for item in data.items:
                 producto = uow.productos.get_by_id(item.producto_id)
                 if not producto:
@@ -59,8 +63,19 @@ class PedidoService:
                 producto.stock_cantidad -= item.cantidad
                 uow.productos.update(producto)
                 
-                # Sumar al subtotal
-                subtotal += item.subtotal_snapshot
+                # ¡Seguridad! Calcular usando los precios de la BD, NO del payload
+                precio_real = producto.price
+                subtotal_item = precio_real * item.cantidad
+                subtotal += subtotal_item
+                
+                detalles_calculados.append({
+                    "producto_id": producto.id,
+                    "nombre_snapshot": producto.name,
+                    "cantidad": item.cantidad,
+                    "precio_snapshot": precio_real,
+                    "subtotal_snapshot": subtotal_item,
+                    "personalizacion": item.personalizacion if item.personalizacion is not None else []
+                })
 
             # 4. Crear el Pedido
             pedido = Pedido(
@@ -77,15 +92,15 @@ class PedidoService:
             uow.pedidos.add(pedido)  # flush -> genera pedido.id
 
             # 5. Crear los DetallePedido
-            for item in data.items:
+            for item_calc in detalles_calculados:
                 detalle = DetallePedido(
                     pedido_id=pedido.id,
-                    producto_id=item.producto_id,
-                    nombre_snapshot=item.nombre_snapshot,
-                    cantidad=item.cantidad,
-                    precio_snapshot=item.precio_snapshot,
-                    subtotal_snapshot=item.subtotal_snapshot,
-                    personalizacion=item.personalizacion if item.personalizacion is not None else [],
+                    producto_id=item_calc["producto_id"],
+                    nombre_snapshot=item_calc["nombre_snapshot"],
+                    cantidad=item_calc["cantidad"],
+                    precio_snapshot=item_calc["precio_snapshot"],
+                    subtotal_snapshot=item_calc["subtotal_snapshot"],
+                    personalizacion=item_calc["personalizacion"],
                 )
                 uow.detalles.add(detalle)
 
