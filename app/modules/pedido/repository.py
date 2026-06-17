@@ -23,6 +23,28 @@ class PedidoRepository:
     def get_all(self) -> list[Pedido]:
         return self.session.exec(select(Pedido).where(Pedido.deleted_at == None)).all()
 
+    def get_abandoned(self) -> list[Pedido]:
+        from datetime import timedelta
+        ahora = datetime.utcnow()
+        return self.session.exec(
+ # Buscar órdenes PAGO_PENDIENTE antiguas (> 1h)
+            query_mp = select(Pedido).where(
+                Pedido.estado_codigo == "PAGO_PENDIENTE",
+                Pedido.created_at < (ahora - timedelta(hours=1)),
+                Pedido.deleted_at == None
+            )
+            ).all()           
+    def get_active_old(self) -> list[Pedido]:
+        from datetime import timedelta
+        ahora = datetime.utcnow()
+        return self.session.exec(
+            # Buscar órdenes normales activas antiguas (> 23h)
+            query_activas = select(Pedido).where(
+                Pedido.estado_codigo.in_(["PENDIENTE", "CONFIRMADO", "EN_PREP", "LISTO"]),
+                Pedido.created_at < (ahora - timedelta(hours=23)),
+                Pedido.deleted_at == None
+            )).all()
+    
     def update(self, pedido: Pedido) -> Pedido:
         self.session.add(pedido)
         self.session.flush()
