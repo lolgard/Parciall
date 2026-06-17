@@ -91,7 +91,7 @@ class PagoService:
             # Si el pago fue aprobado, avanzamos el Pedido a CONFIRMADO
             if mp_status == "approved":
                 pedido = uow.pedidos.get_by_id(pedido_id)
-                if pedido and pedido.estado_codigo == "PENDIENTE":
+                if pedido and pedido.estado_codigo in ["PENDIENTE", "PAGO_PENDIENTE"]:
                     estado_actual = pedido.estado_codigo
                     pedido.estado_codigo = "CONFIRMADO"
                     uow.pedidos.update(pedido)

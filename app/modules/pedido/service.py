@@ -13,8 +13,9 @@ from app.modules.formaPago.model import FormaPago
 from app.modules.Producto.model import Producto
 from app.core.config import settings
 
-ESTADOS_VALIDOS = ["PENDIENTE", "CONFIRMADO", "EN_PREP", "LISTO", "ENTREGADO", "CANCELADO"]
+ESTADOS_VALIDOS = ["PAGO_PENDIENTE", "PENDIENTE", "CONFIRMADO", "EN_PREP", "LISTO", "ENTREGADO", "CANCELADO"]
 TRANSICIONES = {
+    "PAGO_PENDIENTE": ["PENDIENTE", "CONFIRMADO", "CANCELADO"],
     "PENDIENTE": ["CONFIRMADO", "CANCELADO"],
     "CONFIRMADO": ["EN_PREP", "CANCELADO"],
     "EN_PREP": ["LISTO", "CANCELADO"],
@@ -78,10 +79,12 @@ class PedidoService:
                 })
 
             # 4. Crear el Pedido
+            estado_inicial = "PAGO_PENDIENTE" if data.forma_pago_codigo == "MERCADO_PAGO" else "PENDIENTE"
+
             pedido = Pedido(
                 usuario_id=current_user_id,
                 direccion_entrega_id=data.direccion_entrega_id,
-                estado_codigo="PENDIENTE",
+                estado_codigo=estado_inicial,
                 forma_pago_codigo=data.forma_pago_codigo,
                 subtotal=subtotal,
                 descuento=0.0,
@@ -108,7 +111,7 @@ class PedidoService:
             h = HistorialEstadoPedido(
                 pedido_id=pedido.id,
                 estado_desde=None,
-                estado_codigo="PENDIENTE",
+                estado_codigo=estado_inicial,
                 observaciones="Creación del pedido"
             )
             uow.historial.add(h)
@@ -122,14 +125,25 @@ class PedidoService:
         from datetime import timedelta
         cancelados_para_ws = []
         with self.uow as uow:
-            # Optimizacion: buscar unicamente ordenes pendientes/activas anteriores a 23h
             from sqlmodel import select
-            query = select(Pedido).where(
+            
+            # Buscar órdenes PAGO_PENDIENTE antiguas (> 1h)
+            query_mp = select(Pedido).where(
+                Pedido.estado_codigo == "PAGO_PENDIENTE",
+                Pedido.created_at < (ahora - timedelta(hours=1)),
+                Pedido.deleted_at == None
+            )
+            pedidos_abandonados = uow._session.exec(query_mp).all()
+            
+            # Buscar órdenes normales activas antiguas (> 23h)
+            query_activas = select(Pedido).where(
                 Pedido.estado_codigo.in_(["PENDIENTE", "CONFIRMADO", "EN_PREP", "LISTO"]),
                 Pedido.created_at < (ahora - timedelta(hours=23)),
                 Pedido.deleted_at == None
             )
-            pedidos_expirados = uow._session.exec(query).all()
+            pedidos_viejos = uow._session.exec(query_activas).all()
+            
+            pedidos_expirados = pedidos_abandonados + pedidos_viejos
             
             for p in pedidos_expirados:
                 estado_anterior = p.estado_codigo
@@ -142,7 +156,9 @@ class PedidoService:
                         producto.stock_cantidad += detalle.cantidad
                         uow.productos.update(producto)
                         
-                obs = "Cancelado automáticamente (pasaron más de 23 horas)"
+                # Ajustar observaciones según el caso
+                obs = "Cancelado automáticamente (Carrito abandonado > 1h)" if estado_anterior == "PAGO_PENDIENTE" else "Cancelado automáticamente (pasaron más de 23 horas)"
+                
                 h = HistorialEstadoPedido(
                     pedido_id=p.id, 
                     estado_desde=estado_anterior,
@@ -238,8 +254,8 @@ class PedidoService:
                 # PEDIDOS puede avanzar o cancelar cualquier pedido
                 autorizado = True
             elif "CLIENT" in roles:
-                # CLIENT solo puede cancelar su propio pedido cuando está PENDIENTE
-                if nuevo_estado == "CANCELADO" and estado_actual == "PENDIENTE":
+                # CLIENT solo puede cancelar su propio pedido cuando está en estado inicial
+                if nuevo_estado == "CANCELADO" and estado_actual in ["PENDIENTE", "PAGO_PENDIENTE"]:
                     if pedido.usuario_id == current_user.id:
                         autorizado = True
                     
@@ -288,6 +304,7 @@ class PedidoService:
         from app.modules.pedido.schema import PedidoRead
         
         EVENTOS_WS = {
+            "PAGO_PENDIENTE": "ESPERANDO_PAGO",
             "PENDIENTE":  "NUEVO_PEDIDO",
             "CONFIRMADO": "PEDIDO_CONFIRMADO",
             "EN_PREP": "PEDIDO_EN_PREPARACION",
@@ -297,6 +314,7 @@ class PedidoService:
         }
         
         ROLES_POR_TRANSICION = {
+            "PAGO_PENDIENTE": [], # No notificar al admin
             "PENDIENTE":  ["pedidos", "admin"],
             "CONFIRMADO": ["pedidos", "cocina", "admin"],
             "EN_PREP": ["cocina", "pedidos", "admin"],

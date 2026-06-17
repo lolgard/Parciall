@@ -14,6 +14,18 @@ def run_migrations(engine):
                 conn.execute(text("ALTER TABLE producto ADD COLUMN imagen_url VARCHAR"))
                 conn.commit()
 
+    # Migración para agregar el estado 'PAGO_PENDIENTE'
+    if "estadopedido" in inspector.get_table_names():
+        with engine.connect() as conn:
+            # Check if it exists
+            result = conn.execute(text("SELECT codigo FROM estadopedido WHERE codigo = 'PAGO_PENDIENTE'")).first()
+            if not result:
+                conn.execute(text(
+                    "INSERT INTO estadopedido (codigo, descripcion, orden, es_terminal) "
+                    "VALUES ('PAGO_PENDIENTE', 'Esperando confirmación de pago', 0, FALSE)"
+                ))
+                conn.commit()
+
     # Si la tabla 'pedido' no existe todavía, SQLModel la creará en startup
     if "pedido" not in inspector.get_table_names():
         return
