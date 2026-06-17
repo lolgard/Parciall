@@ -80,11 +80,11 @@ class CategoriaService:
                     # Soft delete
                     categoria.deleted_at = datetime.utcnow()
                     estrategia = update_data.get("estrategia_baja", "promote") or "promote"
-                    children = uow._session.exec(select(Categoria).where(Categoria.padre_id == categoria_id)).all()
+                    children = uow.categorias.get_children(categoria_id)
                     if estrategia == "cascade":
                         def inactivate_tree(cat):
                             cat.deleted_at = datetime.utcnow()
-                            kids = uow._session.exec(select(Categoria).where(Categoria.padre_id == cat.id)).all()
+                            kids = uow.categorias.get_parent(cat)
                             for k in kids:
                                 inactivate_tree(k)
                         for child in children:

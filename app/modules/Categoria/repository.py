@@ -25,8 +25,17 @@ class CategoriaRepository(BaseRepository):
     def get_by_name(self,nombre:str)-> Categoria:
         return self.session.exec(
             select(Categoria).where(Categoria.nombre == nombre)
-        ).first()
+            ).first()
     
+    def get_children(self, categoria_id: int) -> list[Categoria]:
+        return self.session.exec(
+            select(Categoria).where(Categoria.padre_id == categoria_id)
+            ).all()
+    def get_parent(self, cat: Categoria) -> Categoria | None:
+        return self.session.exec(
+            select(Categoria).where(Categoria.padre_id == cat.id)
+            ).first()
+            
     def update(self, categoria: Categoria) -> Categoria:
         self.session.add(categoria)
         self.session.flush()
