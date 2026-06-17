@@ -29,6 +29,8 @@ class MercadoPagoProvider(PaymentProvider):
         
         sdk = mercadopago.SDK(settings.MP_ACCESS_TOKEN)
         
+        ngrok_url = settings.NGROK_URL.rstrip('/')
+        
         preference_data = {
             "items": [
                 {
@@ -42,12 +44,12 @@ class MercadoPagoProvider(PaymentProvider):
                 "email": email
             },
             "back_urls": {
-                "success": f"{settings.NGROK_URL}/pagos/redirect?status=success",
-                "pending": f"{settings.NGROK_URL}/pagos/redirect?status=pending",
-                "failure": f"{settings.NGROK_URL}/pagos/redirect?status=failure"
+                "success": f"{ngrok_url}/pagos/redirect?status=success",
+                "pending": f"{ngrok_url}/pagos/redirect?status=pending",
+                "failure": f"{ngrok_url}/pagos/redirect?status=failure"
             },
             "auto_return": "approved",
-            "notification_url": f"{settings.NGROK_URL}/pagos/webhook",
+            "notification_url": f"{ngrok_url}/pagos/webhook",
             "external_reference": str(pedido.id)
         }
         

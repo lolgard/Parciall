@@ -20,29 +20,43 @@ async def cancel_old_orders():
                 cutoff_time = datetime.utcnow() - timedelta(hours=23)
                 
                 # Buscar pedidos viejos que no estén cancelados ni entregados
-                stmt = select(Pedido).where(
+                stmt_activas = select(Pedido).where(
                     Pedido.created_at <= cutoff_time,
-                    Pedido.estado_codigo.notin_(["ENTREGADO", "CANCELADO"])
+                    Pedido.estado_codigo.in_(["PENDIENTE", "CONFIRMADO", "EN_PREP", "LISTO"])
                 )
                 
-                old_orders = db.exec(stmt).all()
+                # Buscar PAGO_PENDIENTE abandonados hace más de 1 hora
+                cutoff_mp = datetime.utcnow() - timedelta(hours=1)
+                stmt_mp = select(Pedido).where(
+                    Pedido.created_at <= cutoff_mp,
+                    Pedido.estado_codigo == "PAGO_PENDIENTE"
+                )
                 
-                if old_orders:
-                    # Encontrar el estado_id de "CANCELADO"
-                    estado_stmt = select(EstadoPedido).where(EstadoPedido.codigo == "CANCELADO")
-                    estado_cancelado = db.exec(estado_stmt).first()
-                    
-                    if not estado_cancelado:
-                        print("Error: El estado CANCELADO no existe en la base de datos.")
-                        continue
-                        
+                old_orders = db.exec(stmt_activas).all()
+                abandoned_mp = db.exec(stmt_mp).all()
+                
+                todas_expiradas = old_orders + abandoned_mp
+                
+                if todas_expiradas:
                     canceled_count = 0
-                    for order in old_orders:
+                    for order in todas_expiradas:
+                        estado_anterior = order.estado_codigo
+                        
+                        # Restaurar stock
+                        for detalle in order.detalles_pedido:
+                            from app.modules.Producto.model import Producto
+                            producto = db.get(Producto, detalle.producto_id)
+                            if producto:
+                                producto.stock_cantidad += detalle.cantidad
+                                db.add(producto)
+                        
                         # Crear el historial de estado
+                        obs = "Cancelado automáticamente (Carrito abandonado > 1h)" if estado_anterior == "PAGO_PENDIENTE" else "Cancelado automáticamente (+23h)"
                         historial = HistorialEstadoPedido(
                             pedido_id=order.id,
-                            estado_pedido_id=estado_cancelado.id,
-                            fecha_inicio=datetime.utcnow()
+                            estado_desde=estado_anterior,
+                            estado_codigo="CANCELADO",
+                            observaciones=obs
                         )
                         db.add(historial)
                         
@@ -52,13 +66,13 @@ async def cancel_old_orders():
                         canceled_count += 1
                         
                     db.commit()
-                    print(f"[CRON] Se auto-cancelaron {canceled_count} pedidos abandonados (+23h).")
+                    print(f"[CRON] Se auto-cancelaron {canceled_count} pedidos expirados.")
                     
-                    # Notificar a todos los clientes conectados al Dashboard/Pedidos
+                    # Notificar a todos los clientes conectados
                     await manager.broadcast_pedidos()
                     
         except Exception as e:
             print(f"[CRON ERROR] Falló la auto-cancelación de pedidos: {e}")
             
-        # Esperar 1 hora antes de volver a chequear (60 min * 60 sec)
-        await asyncio.sleep(3600)
+        # Esperar 1 minuto antes de volver a chequear
+        await asyncio.sleep(60)
