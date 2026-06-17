@@ -125,23 +125,11 @@ class PedidoService:
         from datetime import timedelta
         cancelados_para_ws = []
         with self.uow as uow:
-            from sqlmodel import select
+            ## cron en el repository
+            pedidos_abandonados = uow.pedido.get_abandoned(Pedido)
             
-            # Buscar órdenes PAGO_PENDIENTE antiguas (> 1h)
-            query_mp = select(Pedido).where(
-                Pedido.estado_codigo == "PAGO_PENDIENTE",
-                Pedido.created_at < (ahora - timedelta(hours=1)),
-                Pedido.deleted_at == None
-            )
-            pedidos_abandonados = uow._session.exec(query_mp).all()
-            
-            # Buscar órdenes normales activas antiguas (> 23h)
-            query_activas = select(Pedido).where(
-                Pedido.estado_codigo.in_(["PENDIENTE", "CONFIRMADO", "EN_PREP", "LISTO"]),
-                Pedido.created_at < (ahora - timedelta(hours=23)),
-                Pedido.deleted_at == None
-            )
-            pedidos_viejos = uow._session.exec(query_activas).all()
+            ##cron en el repository 
+            pedidos_viejos = uow.pedidos.get_active_old(Pedido)
             
             pedidos_expirados = pedidos_abandonados + pedidos_viejos
             
