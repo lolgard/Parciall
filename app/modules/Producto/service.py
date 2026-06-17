@@ -1,6 +1,7 @@
 
 
 from math import ceil
+from datetime import datetime
 
 from sqlmodel import Session
 
@@ -167,7 +168,28 @@ class ProductoService():
                         )
                     )
 
-            
+            if data.ingredientes is not None:
+                viejos_ingredientes = uow.producto_ingredientes.get_by_producto(product_id)
+                for rel in viejos_ingredientes:
+                    uow.producto_ingredientes.delete(rel)
+    
+                seen_ingredientes = []
+                for ingre_id in data.ingredientes:
+                    if ingre_id not in seen_ingredientes:
+                        seen_ingredientes.append(ingre_id)
+
+                for ingre_id in seen_ingredientes:
+                    ingrediente = uow.ingredientes.get_by_id(ingre_id)
+                    if not ingrediente:
+                        raise HTTPException(404, f"Ingrediente {ingre_id} no existe")
+                    uow.producto_ingredientes.add(
+                        ProductoIngrediente(
+                            producto_id=product_id,
+                            ingrediente_id=ingre_id,
+                            unidad_medida_id=producto.unidad_medida_id
+                        )
+                    )
+
             uow.productos.update(producto)
             return producto
 
